@@ -1231,7 +1231,11 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
         if (w.toolTextTimer) { clearTimeout(w.toolTextTimer); w.toolTextTimer = null }
         // Reset nudge budget on each genuine new busy→work cycle (user prompt or agent re-engagement after nudge)
         w.todoNudgeAttempts = 0
-        w.doneClaimNoTodosAttempts = 0
+        // NOTE: doneClaimNoTodosAttempts is intentionally NOT reset here. resetBusyFlags
+        // runs on every session-busy event, including the model's response to our own
+        // done-claim nudge — resetting here lets maxRetries never bind (infinite
+        // done-details loop). It resets on genuine new user messages instead (see
+        // message.updated handler). Fixes Mte90/opencode-auto-resume#26.
         w.continueTimestamps = []
         // PRESERVE: userCancelled, completionSignaled, idleSince, continuing
     }
@@ -2370,6 +2374,13 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
                 const props = ev.properties as Record<string, unknown> | undefined
                 const info = props?.info as Record<string, unknown> | undefined
                 const role = (info?.role as string) ?? (props?.role as string)
+                if (role === "user") {
+                    // Genuine new work cycle: re-arm the done-claim nudge budget.
+                    // (It is deliberately NOT reset in resetBusyFlags — see note there.)
+                    const w = sessions.get(sid)
+                    if (w) w.doneClaimNoTodosAttempts = 0
+                    break
+                }
                 if (role !== "assistant") break
                 const tokens = (info?.tokens ?? props?.tokens) as Record<string, unknown> | undefined
                 if (!tokens) break

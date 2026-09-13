@@ -48,7 +48,20 @@ describe("Issue #16 regression: contract assertions on source", () => {
         expect(body).not.toMatch(/w\.userCancelled\s*=\s*false/)
         expect(body).not.toMatch(/w\.completionSignaled\s*=\s*false/)
         expect(body).toMatch(/todoNudgeAttempts\s*=\s*0/)
-        expect(body).toMatch(/doneClaimNoTodosAttempts\s*=\s*0/)
+        // Issue #26: resetBusyFlags must NOT reset doneClaimNoTodosAttempts — it runs
+        // on every session-busy event, including the model's response to our own
+        // done-claim nudge, so resetting here lets maxRetries never bind.
+        expect(body).not.toMatch(/doneClaimNoTodosAttempts\s*=\s*0/)
+    })
+
+    test("Issue #26: done-claim budget re-arms on user message, not on busy", () => {
+        // message.updated handler must reset the counter for role=user (genuine
+        // new work cycle) so maxRetries binds across nudge responses but resets
+        // when the user actually speaks.
+        const msgBlock = SOURCE.match(/case "message\.updated":\s*\{[\s\S]*?\n\s{12}\}/)
+        expect(msgBlock).toBeDefined()
+        expect(msgBlock![0]).toMatch(/role.*user/)
+        expect(msgBlock![0]).toMatch(/doneClaimNoTodosAttempts\s*=\s*0/)
     })
 
     test("FIX A2: command.executed resets only originating session (no loop over all sessions)", () => {

@@ -867,7 +867,7 @@ describe("done-claim text detection (no tool call)", () => {
         expect(lastPrompt).toContain("verify")
     })
 
-    test("done-claim text with no open todos → sends prompts, resets on busy", async () => {
+    test("done-claim text with no open todos → sends prompts, does NOT reset on busy (issue #26)", async () => {
         const { ctx, promptCalls } = createMockContext({
             sessions: [{ id: "ses_cap", status: "busy" }],
             messages: {
@@ -901,19 +901,20 @@ describe("done-claim text detection (no tool call)", () => {
         await wait(100)
         expect(promptCalls.length).toBe(1)
 
-        // Busy resets the counter (fresh budget)
+        // Busy must NOT reset the counter (issue #26: reset-on-busy made
+        // maxRetries unenforceable). Second idle consumes the last retry.
         await hooks.event!({ event: { type: "session.status", sessionID: "ses_cap", properties: { status: "busy" } } as any })
         await wait(50)
         await hooks.event!({ event: { type: "session.status", sessionID: "ses_cap", properties: { status: "idle" } } as any })
         await wait(100)
         expect(promptCalls.length).toBe(2)
 
-        // Busy resets again → another prompt (counter is fresh each cycle now)
+        // Budget exhausted → further busy/idle cycles send nothing.
         await hooks.event!({ event: { type: "session.status", sessionID: "ses_cap", properties: { status: "busy" } } as any })
         await wait(50)
         await hooks.event!({ event: { type: "session.status", sessionID: "ses_cap", properties: { status: "idle" } } as any })
         await wait(100)
-        expect(promptCalls.length).toBe(3)
+        expect(promptCalls.length).toBe(2)
     })
 })
 
