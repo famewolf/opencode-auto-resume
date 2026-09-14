@@ -42,7 +42,7 @@ describe("Issue #16 regression: contract assertions on source", () => {
         // Extract the function body more robustly: find resetBusyFlags, then scan forward
         const fnStart = SOURCE.indexOf("function resetBusyFlags")
         expect(fnStart).toBeGreaterThan(-1)
-        const fnEnd = SOURCE.indexOf("// PRESERVE", fnStart)
+        const fnEnd = SOURCE.indexOf("// PRESERVE: userCancelled", fnStart)
         expect(fnEnd).toBeGreaterThan(fnStart)
         const body = SOURCE.slice(fnStart, fnEnd)
         expect(body).not.toMatch(/w\.userCancelled\s*=\s*false/)

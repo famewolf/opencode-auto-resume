@@ -50,6 +50,9 @@ export interface SessionWatch {
     todoNudgeAttempts: number
     taskCompleteOverrides: number
     doneClaimNoTodosAttempts: number
+    // Last inbound user message (message.updated, role=user). A recently
+    // active user is likely composing a reply — idle nudges must stand down.
+    lastUserMessageAt: number
     pendingTools: number
     pendingCommands: number
     pendingRecovery: boolean
@@ -214,6 +217,18 @@ function containsDoneClaimPattern(text: string): boolean {
     const lines = text.split('\n')
     const lastLines = lines.slice(-5).join('\n')
     return DONE_CLAIM_PATTERNS.some((pat) => pat.test(lastLines))
+}
+
+// A done-claim that already carries a concrete work report satisfies the
+// details demand on its own — prompting again would loop forever (#26).
+function containsWorkDescription(text: string): boolean {
+    // Backticked span mentioning a dotted filename: `src/index.ts`
+    if (/`[^`\n]*\.[a-zA-Z0-9]{1,8}[^`\n]*`/.test(text)) return true
+    // Bare path with a slash and a dotted extension: src/index.ts, /a/b.py
+    if (/[\w\-~.][\w\-.~\/]*\/[\w\-.~]*\.[a-zA-Z]{1,8}\b/.test(text)) return true
+    // Report section headers: files changed, verification, results, ...
+    if (/^(changed|modified|deleted|created|updated|renamed|moved|files?\s+changed|verification|verified|tests?(?:\s+run|\s+passing|\s+pass)?|results?|outcome|commands?\s+(?:run|executed))/im.test(text)) return true
+    return false
 }
 
 function isStreamingFailure(
@@ -466,6 +481,8 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
         (options?.contextSaturationThreshold as number) ?? 0.85
     const subagentNativeCompactionEnabled: boolean =
         (options?.subagentNativeCompactionEnabled as boolean) ?? false
+    const activeUserWindowMs: number =
+        (options?.activeUserWindowMs as number) ?? DEFAULT_ACTIVE_USER_WINDOW_MS
     const dbg = (...args: unknown[]) => { if (debug) console.log("[debug]", ...args) }
 
     const sessions = new Map<string, SessionWatch>()
@@ -561,6 +578,7 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
                 todoNudgeAttempts: 0,
                 taskCompleteOverrides: 0,
                 doneClaimNoTodosAttempts: 0,
+                lastUserMessageAt: 0,
                 pendingTools: 0,
                 pendingCommands: 0,
                 pendingRecovery: false,
@@ -791,6 +809,10 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
             }
 
             dbg(`Recovery prompt sent to ${short(sid)}: prompt="${text.length > 80 ? `${text.slice(0, 80)}...` : text}", agent=${agent ?? "(default)"}, model=${model ? `${model.providerID}/${model.modelID}` : "(default)"}`)
+            // Re-check: ESC (or completion) may have landed while the session
+            // messages were being fetched above — never send into a cancelled
+            // session. (finally below resets the continuing flag on return.)
+            if (w.userCancelled || w.completionSignaled) return
             const response = await ctx.client.session.prompt({
                 path: { id: sid },
                 body: {
@@ -834,7 +856,15 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
         setTimeout(async () => {
             if (w.status !== "busy") {
                 if (w.pendingRecovery) {
-                    if (w.recoveryAttempts < maxRecoveryRetries) {
+                    // Disarm on ESC/completion: without this the retry burns an
+                    // attempt (or escalates) on a dead session, and the still-
+                    // armed recovery refires spuriously once the user re-engages.
+                    if (w.userCancelled || w.completionSignaled) {
+                        w.pendingRecovery = false
+                        w.pendingRecoveryReason = null
+                        w.recoveryAttempts = 0
+                        await log("info", `${short(sid)} - recovery disarmed: session cancelled/completed while awaiting watchdog`)
+                    } else if (w.recoveryAttempts < maxRecoveryRetries) {
                         w.recoveryAttempts++
                         dbg(`State transition on ${short(sid)}: recoveryAttempts=${w.recoveryAttempts - 1} -> ${w.recoveryAttempts}`)
                         w.watchdogRetryGuard = true
@@ -1546,6 +1576,8 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
                             source: "done-claim-no-emoji",
                             priority: 1,
                         }
+                    } else if (containsWorkDescription(allAssistantText)) {
+                        await log("info", `${short(sid)} - model claims done with no open todos, but the response already contains a work description. Skipping details prompt...`)
                     } else if (w.doneClaimNoTodosAttempts < maxRetries) {
                         await log("info", `${short(sid)} - model claims done with no open todos. Sending details prompt (attempt ${w.doneClaimNoTodosAttempts + 1}/${maxRetries})...`)
                         bestCandidate = {
@@ -1703,6 +1735,14 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
         await new Promise<void>((resolve) => setTimeout(resolve, ABORT_CONTINUE_DELAY_MS))
 
         if (w.status === "busy") w.status = "idle"
+
+        // ESC (or completion) may have landed during the abort delay —
+        // re-check before continuing into a cancelled session.
+        if (w.userCancelled || w.completionSignaled) {
+            w.aborting = false
+            await log("info", `${short(sid)} - abort+resume stood down: session cancelled/completed during abort delay`)
+            return false
+        }
 
         try {
             await sendContinuePrompt(sid, continuePrompt, w)
@@ -2124,7 +2164,17 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
                     // and works with or without magic-context installed.
                     if (w.isSubagent) {
                         try {
-                            if (
+                            let subAwaitingInput = false
+                            try {
+                                subAwaitingInput = hasPendingUserInput(await getSessionMessages(sid))
+                            } catch (e) {
+                                dbg(`session.idle sid=${short(sid)}: awaiting-input check error: ${e}`)
+                            }
+                            if (subAwaitingInput) {
+                                await log("info", `${short(sid)} - awaiting user input (pending tool_use), skipping subagent saturation check`)
+                            } else if (userRecentlyActive(w)) {
+                                await log("info", `${short(sid)} - user recently active, skipping subagent saturation check`)
+                            } else if (
                                 w.lastTokenTotal > 0 &&
                                 w.contextWrapupAttempts < 1 &&
                                 !w.userCancelled &&
@@ -2142,6 +2192,7 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
                                             "warn",
                                             `${short(sid)} - context saturation (subagent): ${w.lastTokenTotal}/${usable} tokens (${Math.round((w.lastTokenTotal / usable) * 100)}% of usable); triggering native compaction`,
                                         )
+                                        if (w.userCancelled || w.completionSignaled) break
                                         await ctx.client.session.summarize({ path: { id: sid } })
                                     }
                                 }
@@ -2276,7 +2327,8 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
                                     w.lastTokenTotal > 0 &&
                                     w.contextWrapupAttempts < 1 &&
                                     !w.userCancelled &&
-                                    !w.completionSignaled
+                                    !w.completionSignaled &&
+                                    !userRecentlyActive(w)
                                 ) {
                                     const usable = await getUsableContextLimit(sid)
                                     if (
@@ -2290,7 +2342,8 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
                                             "warn",
                                             `${short(sid)} - context saturation: ${w.lastTokenTotal}/${usable} tokens (${Math.round((w.lastTokenTotal / usable) * 100)}% of usable); sending magic-context wrapup command`,
                                         )
-                                        await ctx.client.session.command({
+                                            if (w.userCancelled || w.completionSignaled) break
+                                            await ctx.client.session.command({
                                             path: { id: sid },
                                             body: { command: CTX_WRAPUP_TRIGGER, arguments: "" },
                                         })

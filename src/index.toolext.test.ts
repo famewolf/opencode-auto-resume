@@ -74,6 +74,9 @@ function makeUserMessageEvent(sid: string, text: string) {
 function makeTodoUpdatedEvent(sid: string, todos: any[]) {
     return { event: { type: "todo.updated", sessionID: sid, properties: { todos } } }
 }
+function makeUserMessageEvent(sid: string, text: string) {
+    return { event: { type: "message.updated", sessionID: sid, properties: { info: { role: "user" }, parts: [{ type: "text", text }] } } }
+}
 const wait = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 describe("checkForToolCallAsText detection", () => {
