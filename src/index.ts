@@ -1967,6 +1967,19 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
                 if (w.userCancelled || w.completionSignaled) continue
                 if (w.continuing) continue
                 if (busyCount() !== 0) continue
+                // Awaiting-input gate (same contract as the session.idle
+                // block): a trailing pending tool_use means the user holds
+                // the ball — the periodic open-todos nudge must stand down
+                // too. Without this it fires with no question asked whenever
+                // the session has open todos.
+                try {
+                    if (hasPendingUserInput(await getSessionMessages(sid))) {
+                        await log("info", `${short(sid)} - awaiting user input (pending tool_use), skipping periodic open-todos nudge`)
+                        continue
+                    }
+                } catch (e) {
+                    dbg(`periodic recheck sid=${short(sid)}: awaiting-input check error: ${e}`)
+                }
                 // Lazy fetch: if we never received a todo.updated event, try the API
                 if ((w.todos || []).length === 0) {
                     const fetched = await fetchSessionTodos(sid)
@@ -2112,7 +2125,9 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
                         // Awaiting-input gate: trailing pending tool_use (e.g. an
                         // open question) means the user holds the ball — skip the
                         // whole idle block, no check may prompt. Re-evaluated on
-                        // the next idle event after the user answers.
+                        // the next idle event after the user answers. Computed
+                        // once here so every idle check below (streaming,
+                        // dead-stream, context, open-todos) shares it.
                         let awaitingUserInput = false
                         try {
                             awaitingUserInput = hasPendingUserInput(await getSessionMessages(sid))
@@ -2267,7 +2282,7 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
                         }
                         const open = getOpenTodos(todos)
                         
-                        if (open.length > 0 && currentBusy === 0 && !w.completionSignaled && !w.userCancelled && w.todoNudgeAttempts < maxRetries) {
+                        if (open.length > 0 && currentBusy === 0 && !awaitingUserInput && !w.completionSignaled && !w.userCancelled && w.todoNudgeAttempts < maxRetries) {
                             const isCelebration = await lastAssistantEndsWithCelebration(sid)
                             await log("info", `${short(sid)} - open todos=${open.length}, isCelebration=${isCelebration}, currentBusy=${currentBusy}`)
                             if (isCelebration) {
