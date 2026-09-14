@@ -881,6 +881,28 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
         return []
     }
 
+    // Awaiting-input gate (famewolf follow-up to #26): a trailing pending
+    // tool_use part (e.g. the question tool waiting on the user) means the
+    // ball is in the user's court — the session is NOT stalled, so no idle
+    // check may prompt. A newer user message clears the gate.
+    function hasPendingUserInput(messages: Array<Record<string, unknown>>): boolean {
+        for (let i = messages.length - 1; i >= 0; i--) {
+            const msg = messages[i]
+            const rawRole = (msg.role ?? (msg.info as Record<string, unknown> | undefined)?.role) as string | undefined
+            if (rawRole === "user") return false
+            if (rawRole !== "assistant") continue
+            const parts = msg.parts as Array<Record<string, unknown>> | undefined
+            if (!parts) return false
+            for (const part of parts) {
+                if ((part.type as string) !== "tool_use") continue
+                const state = part.state as Record<string, unknown> | undefined
+                if ((state?.status as string | undefined) === "pending") return true
+            }
+            return false
+        }
+        return false
+    }
+
     const messagesInflight = new Map<string, Promise<Array<Record<string, unknown>>>>()
 
     async function getSessionMessages(sid: string): Promise<Array<Record<string, unknown>>> {
@@ -1329,6 +1351,11 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
 
         try {
             const messages = await getSessionMessages(sid)
+            if (hasPendingUserInput(messages)) {
+                w.checkingToolText = false
+                await log("info", `${short(sid)} - awaiting user input (pending tool_use), skipping tool-text check`)
+                return
+            }
             const recent = messages.slice(-3)
 
             let bestCandidate: {
@@ -2082,7 +2109,21 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
                     }
 
                     if (!w.isSubagent) {
+                        // Awaiting-input gate: trailing pending tool_use (e.g. an
+                        // open question) means the user holds the ball — skip the
+                        // whole idle block, no check may prompt. Re-evaluated on
+                        // the next idle event after the user answers.
+                        let awaitingUserInput = false
+                        try {
+                            awaitingUserInput = hasPendingUserInput(await getSessionMessages(sid))
+                        } catch (e) {
+                            dbg(`session.idle sid=${short(sid)}: awaiting-input check error: ${e}`)
+                        }
+                        if (awaitingUserInput) {
+                            await log("info", `${short(sid)} - awaiting user input (pending tool_use), standing down all idle checks/nudges`)
+                        }
                         if (
+                            !awaitingUserInput &&
                             !w.pendingRecovery &&
                             !w.completionSignaled &&
                             !w.userCancelled &&
@@ -2254,6 +2295,10 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
                                         return
                                     }
                                     const msgs = await getSessionMessages(idleSid)
+                                    if (hasPendingUserInput(msgs)) {
+                                        dbg(`session.idle sid=${short(idleSid)}: awaiting user input, skipping action-intent prompt`)
+                                        return
+                                    }
                                     const lastAssistantMsg = msgs.slice().reverse().find(m => (m.role ?? (m.info as Record<string, unknown> | undefined)?.role) === "assistant")
                                     if (lastAssistantMsg) {
                                         let lastText = ""
@@ -2323,6 +2368,10 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
                                     return
                                 }
                                 const msgs = await getSessionMessages(sid)
+                                if (hasPendingUserInput(msgs)) {
+                                    dbg(`session.idle sid=${short(sid)}: awaiting user input, skipping action-intent prompt`)
+                                    return
+                                }
                                 const lastAssistantMsg = msgs.slice().reverse().find(m => (m.role ?? (m.info as Record<string, unknown> | undefined)?.role) === "assistant")
                                 if (lastAssistantMsg) {
                                     let lastText = ""
