@@ -57,10 +57,16 @@ export interface SessionWatch {
     pendingRecoveryAt: number
     recoveryAttempts: number
     watchdogRetryGuard: boolean
+    // Last inbound user message (message.updated, role=user). A recently
+    // active user is likely composing a reply — idle nudges must stand down.
+    lastUserMessageAt: number
 }
 
 const DEFAULT_CHUNK_TIMEOUT_MS = 45_000
 const DEFAULT_CHECK_INTERVAL_MS = 5_000
+// Active-user window: an inbound user message this recent means the user is
+// engaged (likely composing) — idle open-todos nudges stand down.
+const DEFAULT_ACTIVE_USER_WINDOW_MS = 15 * 60_000
 const DEFAULT_GRACE_PERIOD_MS = 3_000
 const DEFAULT_MAX_RETRIES = 3
 const DEFAULT_MAX_BACKOFF_MS = 8_000
@@ -405,6 +411,8 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
     (options?.chunkTimeoutMs as number) ?? DEFAULT_CHUNK_TIMEOUT_MS
     const checkIntervalMs: number =
     (options?.checkIntervalMs as number) ?? DEFAULT_CHECK_INTERVAL_MS
+    const activeUserWindowMs: number =
+    (options?.activeUserWindowMs as number) ?? DEFAULT_ACTIVE_USER_WINDOW_MS
     const gracePeriodMs: number =
     (options?.gracePeriodMs as number) ?? DEFAULT_GRACE_PERIOD_MS
     const maxRetries: number =
@@ -560,6 +568,7 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
                 pendingRecoveryAt: 0,
                 recoveryAttempts: 0,
                 watchdogRetryGuard: false,
+                lastUserMessageAt: 0,
             }
             sessions.set(sid, w)
         }
@@ -901,6 +910,16 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
             return false
         }
         return false
+    }
+
+    // Active-user suppression (regression fix: nudges firing while the user
+    // types a reply). The awaiting-input gate only covers a formally pending
+    // tool_use — but a composing user leaves no pending tool call: the last
+    // assistant turn completed and the session reads idle with open todos.
+    // The plugin cannot see composing, so any inbound user message inside
+    // activeUserWindowMs means the user is engaged — skip idle nudges.
+    function userRecentlyActive(w: SessionWatch): boolean {
+        return w.lastUserMessageAt > 0 && Date.now() - w.lastUserMessageAt < activeUserWindowMs
     }
 
     const messagesInflight = new Map<string, Promise<Array<Record<string, unknown>>>>()
@@ -1354,6 +1373,14 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
             if (hasPendingUserInput(messages)) {
                 w.checkingToolText = false
                 await log("info", `${short(sid)} - awaiting user input (pending tool_use), skipping tool-text check`)
+                return
+            }
+            // Active-user suppression: inbound user message inside the window
+            // means the user is engaged (likely composing). Without this the
+            // open-todos reminder fallback below fires mid-composition.
+            if (userRecentlyActive(w)) {
+                w.checkingToolText = false
+                await log("info", `${short(sid)} - user recently active, skipping tool-text check`)
                 return
             }
             const recent = messages.slice(-3)
@@ -1980,6 +2007,13 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
                 } catch (e) {
                     dbg(`periodic recheck sid=${short(sid)}: awaiting-input check error: ${e}`)
                 }
+                // Active-user suppression: inbound user message inside the
+                // window means the user is engaged (likely composing) — the
+                // session is NOT abandoned, skip the periodic nudge too.
+                if (userRecentlyActive(w)) {
+                    await log("info", `${short(sid)} - user recently active, skipping periodic open-todos nudge`)
+                    continue
+                }
                 // Lazy fetch: if we never received a todo.updated event, try the API
                 if ((w.todos || []).length === 0) {
                     const fetched = await fetchSessionTodos(sid)
@@ -2282,7 +2316,7 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
                         }
                         const open = getOpenTodos(todos)
                         
-                        if (open.length > 0 && currentBusy === 0 && !awaitingUserInput && !w.completionSignaled && !w.userCancelled && w.todoNudgeAttempts < maxRetries) {
+                        if (open.length > 0 && currentBusy === 0 && !awaitingUserInput && !userRecentlyActive(w) && !w.completionSignaled && !w.userCancelled && w.todoNudgeAttempts < maxRetries) {
                             const isCelebration = await lastAssistantEndsWithCelebration(sid)
                             await log("info", `${short(sid)} - open todos=${open.length}, isCelebration=${isCelebration}, currentBusy=${currentBusy}`)
                             if (isCelebration) {
@@ -2312,6 +2346,10 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
                                     const msgs = await getSessionMessages(idleSid)
                                     if (hasPendingUserInput(msgs)) {
                                         dbg(`session.idle sid=${short(idleSid)}: awaiting user input, skipping action-intent prompt`)
+                                        return
+                                    }
+                                    if (userRecentlyActive(idleW)) {
+                                        dbg(`session.idle sid=${short(idleSid)}: user recently active, skipping action-intent prompt`)
                                         return
                                     }
                                     const lastAssistantMsg = msgs.slice().reverse().find(m => (m.role ?? (m.info as Record<string, unknown> | undefined)?.role) === "assistant")
@@ -2387,6 +2425,11 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
                                     dbg(`session.idle sid=${short(sid)}: awaiting user input, skipping action-intent prompt`)
                                     return
                                 }
+                                const w2pre = sessions.get(sid)
+                                if (w2pre && userRecentlyActive(w2pre)) {
+                                    dbg(`session.idle sid=${short(sid)}: user recently active, skipping action-intent prompt`)
+                                    return
+                                }
                                 const lastAssistantMsg = msgs.slice().reverse().find(m => (m.role ?? (m.info as Record<string, unknown> | undefined)?.role) === "assistant")
                                 if (lastAssistantMsg) {
                                     let lastText = ""
@@ -2442,7 +2485,12 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
                     // Genuine new work cycle: re-arm the done-claim nudge budget.
                     // (It is deliberately NOT reset in resetBusyFlags — see note there.)
                     const w = sessions.get(sid)
-                    if (w) w.doneClaimNoTodosAttempts = 0
+                    if (w) {
+                        w.doneClaimNoTodosAttempts = 0
+                        // Stamp inbound user activity: a recently active user
+                        // is likely composing — idle nudges must stand down.
+                        w.lastUserMessageAt = Date.now()
+                    }
                     break
                 }
                 if (role !== "assistant") break

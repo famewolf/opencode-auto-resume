@@ -68,6 +68,9 @@ const CLOSED_TODOS = [
 function makeStatusEvent(sid: string, status: string) {
     return { event: { type: "session.status", sessionID: sid, properties: { status } } }
 }
+function makeUserMessageEvent(sid: string, text: string) {
+    return { event: { type: "message.updated", sessionID: sid, properties: { info: { role: "user" }, parts: [{ type: "text", text }] } } }
+}
 function makeTodoUpdatedEvent(sid: string, todos: any[]) {
     return { event: { type: "todo.updated", sessionID: sid, properties: { todos } } }
 }
@@ -1000,5 +1003,101 @@ describe("awaiting-input gate on periodic recheck (no question asked, open todos
         await wait(800)
 
         expect(promptCalls.length).toBeGreaterThan(0)
+    })
+})
+
+describe("active-user suppression (recent inbound user message, no pending tool)", () => {
+    test("user message just before idle + open todos → NO prompts (user likely composing)", async () => {
+        const { ctx, promptCalls } = createMockContext({
+            sessions: [
+                { id: "ses_act1", status: "idle" }
+            ],
+            messages: {
+                "ses_act1": [
+                    {
+                        role: "assistant",
+                        parts: [{ type: "text", text: "Still working through the list" }]
+                    }
+                ]
+            }
+        })
+
+        const hooks = await AutoResumePlugin(ctx, {
+            enabled: true,
+            baseBackoffMs: 1,
+            warmupMs: 0,
+            toolTextCheckDelayMs: 10,
+            minActivityGapMs: 0
+        })
+        await hooks.event!(makeTodoUpdatedEvent("ses_act1", OPEN_TODOS) as any)
+        await hooks.event!(makeUserMessageEvent("ses_act1", "go on") as any)
+        await hooks.event!(makeStatusEvent("ses_act1", "busy") as any)
+        await hooks.event!(makeStatusEvent("ses_act1", "idle") as any)
+        await wait(3500)
+
+        expect(promptCalls.length).toBe(0)
+    })
+
+    test("stale user activity (window expired) → todo nudge fires again", async () => {
+        const { ctx, promptCalls } = createMockContext({
+            sessions: [
+                { id: "ses_act2", status: "idle" }
+            ],
+            messages: {
+                "ses_act2": [
+                    {
+                        role: "assistant",
+                        parts: [{ type: "text", text: "Still working through the list" }]
+                    }
+                ]
+            }
+        })
+
+        const hooks = await AutoResumePlugin(ctx, {
+            enabled: true,
+            baseBackoffMs: 1,
+            warmupMs: 0,
+            toolTextCheckDelayMs: 10,
+            minActivityGapMs: 0,
+            activeUserWindowMs: 1
+        })
+        await hooks.event!(makeTodoUpdatedEvent("ses_act2", OPEN_TODOS) as any)
+        await hooks.event!(makeUserMessageEvent("ses_act2", "go on") as any)
+        await wait(100)
+        await hooks.event!(makeStatusEvent("ses_act2", "busy") as any)
+        await hooks.event!(makeStatusEvent("ses_act2", "idle") as any)
+        await wait(3500)
+
+        expect(promptCalls.length).toBeGreaterThan(0)
+    })
+
+    test("recent user activity → periodic recheck sends NOTHING", async () => {
+        const { ctx, promptCalls } = createMockContext({
+            sessions: [{ id: "ses_act3", status: "idle" }],
+            messages: {
+                "ses_act3": [
+                    {
+                        role: "assistant",
+                        parts: [{ type: "text", text: "Still working through the list" }]
+                    }
+                ]
+            }
+        })
+
+        const hooks = await AutoResumePlugin(ctx, {
+            enabled: true,
+            baseBackoffMs: 1,
+            warmupMs: 0,
+            toolTextCheckDelayMs: 10,
+            minActivityGapMs: 0,
+            checkIntervalMs: 50
+        })
+        await hooks.event!(makeTodoUpdatedEvent("ses_act3", OPEN_TODOS) as any)
+        await hooks.event!(makeUserMessageEvent("ses_act3", "go on") as any)
+        await hooks.event!(makeStatusEvent("ses_act3", "busy") as any)
+        await hooks.event!(makeStatusEvent("ses_act3", "idle") as any)
+        await wait(800)
+
+        expect(promptCalls.length).toBe(0)
     })
 })
