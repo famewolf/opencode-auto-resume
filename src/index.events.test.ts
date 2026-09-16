@@ -746,11 +746,13 @@ describe("task_complete tool", () => {
         const result2 = await hooks.tool!["task_complete"].execute({}, { sessionID: "ses_parent" } as any)
         expect(result2).toContain("Task completion acknowledged")
 
-        // Send idle — should NOT trigger continue because completionSignaled is now true
+        // The blocked first task_complete call fired a visible block-site nudge
+        // (1 session.prompt). The idle must add 0 because completionSignaled is now true.
+        const promptsBeforeIdle = promptCalls.length
         await hooks.event!({ event: { type: "session.status", sessionID: "ses_parent", properties: { status: "idle" } } as any })
         await wait(100)
 
-        expect(promptCalls.length).toBe(0)
+        expect(promptCalls.length).toBe(promptsBeforeIdle)
     })
 
     test("taskCompleteOverrides persists across busy/idle cycle", async () => {
