@@ -139,6 +139,7 @@ describe("Plugin Core Logic", () => {
                         completionSignaled: false,
                         todoNudgeAttempts: 0,
                         taskCompleteOverrides: 0,
+                        taskCompleteSignals: 0,
                         doneClaimNoTodosAttempts: 0,
                         pendingTools: 0,
                         pendingCommands: 0,
@@ -470,7 +471,7 @@ describe("Plugin Core Logic", () => {
                 {},
             ]
 
-            const valid = malformed.filter(s => typeof s.id === "string" && s.id)
+            const valid = (malformed as Array<{id?: unknown}>).filter(s => typeof s.id === "string" && s.id)
             expect(valid.length).toBe(0)
         })
 

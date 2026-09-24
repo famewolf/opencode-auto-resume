@@ -35,20 +35,27 @@ function createMockContext(opts: {
 // These fail deterministically if someone removes the fix.
 // ============================================================================
 
-describe("Issue #16 regression: contract assertions on source", () => {
+describe("busy-flag rearm: contract assertions on source", () => {
     test("FIX A1: resetBusyFlags preserves userCancelled (not cleared on busy)", () => {
         // resetBusyFlags must exist and must NOT clear userCancelled/completionSignaled
         expect(SOURCE).toMatch(/function resetBusyFlags/)
         // Extract the function body more robustly: find resetBusyFlags, then scan forward
         const fnStart = SOURCE.indexOf("function resetBusyFlags")
         expect(fnStart).toBeGreaterThan(-1)
-        const fnEnd = SOURCE.indexOf("// PRESERVE", fnStart)
+        const fnEnd = SOURCE.indexOf("// PRESERVE: userCancelled", fnStart)
         expect(fnEnd).toBeGreaterThan(fnStart)
         const body = SOURCE.slice(fnStart, fnEnd)
         expect(body).not.toMatch(/w\.userCancelled\s*=\s*false/)
         expect(body).not.toMatch(/w\.completionSignaled\s*=\s*false/)
         expect(body).toMatch(/todoNudgeAttempts\s*=\s*0/)
-        expect(body).toMatch(/doneClaimNoTodosAttempts\s*=\s*0/)
+        // #26: the done-claim budget must NOT re-arm on every busy (that let
+        // the details prompt refire unboundedly across cycles); it re-arms
+        // only on an inbound user message (genuine new work cycle).
+        expect(body).not.toMatch(/doneClaimNoTodosAttempts\s*=\s*0/)
+        const msgUpdated = SOURCE.indexOf('case "message.updated"')
+        expect(msgUpdated).toBeGreaterThan(-1)
+        const msgBlock = SOURCE.slice(msgUpdated, msgUpdated + 2000)
+        expect(msgBlock).toMatch(/doneClaimNoTodosAttempts\s*=\s*0/)
     })
 
     test("FIX A2: command.executed resets only originating session (no loop over all sessions)", () => {
@@ -102,7 +109,7 @@ describe("Issue #16 regression: contract assertions on source", () => {
 // BEHAVIORAL TESTS — verify the runtime behavior of each fix.
 // ============================================================================
 
-describe("Issue #16 regression: behavioral tests", () => {
+describe("busy-flag rearm: behavioral tests", () => {
     test("FIX A1+A5: ESC survives busy event — no resume after interrupt", async () => {
         const { ctx, promptCalls } = createMockContext({
             sessions: [{ id: "ses_esc", status: "busy" }],
@@ -112,19 +119,19 @@ describe("Issue #16 regression: behavioral tests", () => {
         const hooks = await AutoResumePlugin(ctx, { enabled: true, baseBackoffMs: 1 })
 
         // Register todos
-        await hooks.event({ event: { type: "todo.updated", sessionID: "ses_esc", properties: { todos: [{ id: "t1", content: "task", status: "pending", priority: "medium" }] } } })
+        await hooks.event!({ event: { type: "todo.updated", sessionID: "ses_esc", properties: { todos: [{ id: "t1", content: "task", status: "pending", priority: "medium" }] } } } as any)
 
         // User presses ESC
-        await hooks.event({ event: { type: "session.interrupted", sessionID: "ses_esc" } })
+        await hooks.event!({ event: { type: "session.interrupted", sessionID: "ses_esc" } } as any)
         await wait(50)
         expect(promptCalls.length).toBe(0)
 
         // Busy event must NOT clear userCancelled
-        await hooks.event({ event: { type: "session.status", sessionID: "ses_esc", properties: { status: "busy" } } })
+        await hooks.event!({ event: { type: "session.status", sessionID: "ses_esc", properties: { status: "busy" } } } as any)
         await wait(20)
 
         // Session goes idle — must NOT resume (ESC sticks)
-        await hooks.event({ event: { type: "session.status", sessionID: "ses_esc", properties: { status: "idle" } } })
+        await hooks.event!({ event: { type: "session.status", sessionID: "ses_esc", properties: { status: "idle" } } } as any)
         await wait(200)
 
         expect(promptCalls.length).toBe(0)
@@ -139,15 +146,15 @@ describe("Issue #16 regression: behavioral tests", () => {
         const hooks = await AutoResumePlugin(ctx, { enabled: true, baseBackoffMs: 1 })
 
         // Session A gets ESC
-        await hooks.event({ event: { type: "session.interrupted", sessionID: "ses_a" } })
+        await hooks.event!({ event: { type: "session.interrupted", sessionID: "ses_a" } } as any)
         await wait(30)
 
         // Session B executes a command — must NOT clear session A's userCancelled
-        await hooks.event({ event: { type: "command.executed", sessionID: "ses_b" } })
+        await hooks.event!({ event: { type: "command.executed", sessionID: "ses_b" } } as any)
         await wait(20)
 
         // Session A goes idle — must NOT resume
-        await hooks.event({ event: { type: "session.status", sessionID: "ses_a", properties: { status: "idle" } } })
+        await hooks.event!({ event: { type: "session.status", sessionID: "ses_a", properties: { status: "idle" } } } as any)
         await wait(200)
 
         expect(promptCalls.length).toBe(0)
@@ -162,12 +169,12 @@ describe("Issue #16 regression: behavioral tests", () => {
         const hooks = await AutoResumePlugin(ctx, { enabled: true, baseBackoffMs: 1, maxRetries: 3 })
 
         // Signal completion via task_complete tool
-        await hooks.event({ event: { type: "todo.updated", sessionID: "ses_stall", properties: { todos: [] } } })
+        await hooks.event!({ event: { type: "todo.updated", sessionID: "ses_stall", properties: { todos: [] } } } as any)
 
         // Simulate completion signal (no todos open, agent finished)
         const w = (hooks as any)
         // Trigger idle
-        await hooks.event({ event: { type: "session.status", sessionID: "ses_stall", properties: { status: "idle" } } })
+        await hooks.event!({ event: { type: "session.status", sessionID: "ses_stall", properties: { status: "idle" } } } as any)
         await wait(200)
 
         // Even with stall, should not resume because completionSignaled or no open todos
@@ -185,7 +192,7 @@ describe("Issue #16 regression: behavioral tests", () => {
         // NO todo.updated event sent — w.todos starts empty
 
         // Session goes idle — lazy fetch should populate w.todos from the API mock
-        await hooks.event({ event: { type: "session.status", sessionID: "ses_lazy", properties: { status: "idle" } } })
+        await hooks.event!({ event: { type: "session.status", sessionID: "ses_lazy", properties: { status: "idle" } } } as any)
         await wait(200)
 
         // The nudge should fire because fetchSessionTodos populated open todos
@@ -201,10 +208,10 @@ describe("Issue #16 regression: behavioral tests", () => {
         const hooks = await AutoResumePlugin(ctx, { enabled: true, baseBackoffMs: 1 })
 
         // Open todos set
-        await hooks.event({ event: { type: "todo.updated", sessionID: "ses_emoji", properties: { todos: [{ id: "t1", content: "remaining", status: "pending", priority: "medium" }] } } })
+        await hooks.event!({ event: { type: "todo.updated", sessionID: "ses_emoji", properties: { todos: [{ id: "t1", content: "remaining", status: "pending", priority: "medium" }] } } } as any)
 
         // Idle — 🎉 detected but todos open → false positive → nudge sent
-        await hooks.event({ event: { type: "session.status", sessionID: "ses_emoji", properties: { status: "idle" } } })
+        await hooks.event!({ event: { type: "session.status", sessionID: "ses_emoji", properties: { status: "idle" } } } as any)
         await wait(200)
 
         expect(promptCalls.length).toBeGreaterThanOrEqual(1)
@@ -219,10 +226,10 @@ describe("Issue #16 regression: behavioral tests", () => {
         const hooks = await AutoResumePlugin(ctx, { enabled: true, baseBackoffMs: 1 })
 
         // NO open todos
-        await hooks.event({ event: { type: "todo.updated", sessionID: "ses_done", properties: { todos: [] } } })
+        await hooks.event!({ event: { type: "todo.updated", sessionID: "ses_done", properties: { todos: [] } } } as any)
 
         // Idle — 🎉 with no todos → correctly latches completion
-        await hooks.event({ event: { type: "session.status", sessionID: "ses_done", properties: { status: "idle" } } })
+        await hooks.event!({ event: { type: "session.status", sessionID: "ses_done", properties: { status: "idle" } } } as any)
         await wait(200)
 
         expect(promptCalls.length).toBe(0)

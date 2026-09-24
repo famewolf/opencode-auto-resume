@@ -132,9 +132,9 @@ describe("WP-05 watchdog — recovery retry & escalation", () => {
         } as any)
         const sid = "ses_rec"
 
-        await hooks.event(makeStatusEvent(sid, "busy"))
-        await hooks.event(makeErrorEvent(sid, "ProviderError", "stream failed"))
-        await hooks.event(makeStatusEvent(sid, "idle"))
+        await hooks.event!(makeStatusEvent(sid, "busy") as any)
+        await hooks.event!(makeErrorEvent(sid, "ProviderError", "stream failed") as any)
+        await hooks.event!(makeStatusEvent(sid, "idle") as any)
 
         // Initial recovery send (attempt 1) + 1 watchdog retry (attempt 2),
         // then escalation. (Abort+continue sends a 3rd prompt ~2s later.)
@@ -170,9 +170,9 @@ describe("WP-05 watchdog — recovery retry & escalation", () => {
         } as any)
         const sid = "ses_one"
 
-        await hooks.event(makeStatusEvent(sid, "busy"))
-        await hooks.event(makeErrorEvent(sid, "ProviderError", "stream failed"))
-        await hooks.event(makeStatusEvent(sid, "idle"))
+        await hooks.event!(makeStatusEvent(sid, "busy") as any)
+        await hooks.event!(makeErrorEvent(sid, "ProviderError", "stream failed") as any)
+        await hooks.event!(makeStatusEvent(sid, "idle") as any)
 
         await wait(800)
         expect(promptCalls.length).toBe(1)
@@ -197,9 +197,9 @@ describe("WP-05 watchdog — recovery retry & escalation", () => {
         } as any)
         const sid = "ses_busy"
 
-        await hooks.event(makeStatusEvent(sid, "busy"))
-        await hooks.event(makeErrorEvent(sid, "ProviderError", "stream failed"))
-        await hooks.event(makeStatusEvent(sid, "idle"))
+        await hooks.event!(makeStatusEvent(sid, "busy") as any)
+        await hooks.event!(makeErrorEvent(sid, "ProviderError", "stream failed") as any)
+        await hooks.event!(makeStatusEvent(sid, "idle") as any)
 
         // Wait for the initial recovery send, then flip the session to busy
         // before the deferred watchdog fires.
@@ -231,8 +231,8 @@ describe("WP-05 watchdog — recovery retry & escalation", () => {
 
         // No streaming failure — a plain action-intent recovery sends a prompt
         // with pendingRecovery === false.
-        await hooks.event(makeStatusEvent(sid, "busy"))
-        await hooks.event(makeStatusEvent(sid, "idle"))
+        await hooks.event!(makeStatusEvent(sid, "busy") as any)
+        await hooks.event!(makeStatusEvent(sid, "idle") as any)
 
         await wait(500)
         expect(promptCalls.length).toBe(1)
@@ -261,9 +261,9 @@ describe("WP-05 watchdog — recovery retry & escalation", () => {
         } as any)
         const sid = "ses_guard"
 
-        await hooks.event(makeStatusEvent(sid, "busy"))
-        await hooks.event(makeErrorEvent(sid, "ProviderError", "stream failed"))
-        await hooks.event(makeStatusEvent(sid, "idle"))
+        await hooks.event!(makeStatusEvent(sid, "busy") as any)
+        await hooks.event!(makeErrorEvent(sid, "ProviderError", "stream failed") as any)
+        await hooks.event!(makeStatusEvent(sid, "idle") as any)
 
         // Call 1: recovery send. Call 2: action-intent continue (blocked, so
         // w.continuing stays true). Call 3: watchdog retry must bypass the
@@ -301,9 +301,9 @@ describe("WP-05 watchdog — recovery retry & escalation", () => {
         } as any)
         const sid = "ses_conc"
 
-        await hooks.event(makeStatusEvent(sid, "busy"))
-        await hooks.event(makeErrorEvent(sid, "ProviderError", "stream failed"))
-        await hooks.event(makeStatusEvent(sid, "idle"))
+        await hooks.event!(makeStatusEvent(sid, "busy") as any)
+        await hooks.event!(makeErrorEvent(sid, "ProviderError", "stream failed") as any)
+        await hooks.event!(makeStatusEvent(sid, "idle") as any)
 
         await wait(500)
         expect(logCalls.some(l => l.level === "debug" && l.message.includes("continue already in progress, skipping"))).toBe(true)
@@ -328,17 +328,17 @@ describe("WP-05 watchdog — recovery retry & escalation", () => {
         } as any)
         const sid = "ses_ok"
 
-        await hooks.event(makeStatusEvent(sid, "busy"))
-        await hooks.event(makeErrorEvent(sid, "ProviderError", "stream failed"))
-        await hooks.event(makeStatusEvent(sid, "idle"))
+        await hooks.event!(makeStatusEvent(sid, "busy") as any)
+        await hooks.event!(makeErrorEvent(sid, "ProviderError", "stream failed") as any)
+        await hooks.event!(makeStatusEvent(sid, "idle") as any)
 
         const sent = await waitFor(() => promptCalls.length >= 1)
         expect(sent).toBe(true)
 
         // Recovery succeeds: the session goes busy (resetSessionFlags clears
         // pendingRecovery and recoveryAttempts) and then idle again.
-        await hooks.event(makeStatusEvent(sid, "busy"))
-        await hooks.event(makeStatusEvent(sid, "idle"))
+        await hooks.event!(makeStatusEvent(sid, "busy") as any)
+        await hooks.event!(makeStatusEvent(sid, "idle") as any)
         await wait(500)
 
         expect(promptCalls.length).toBe(1)
@@ -362,9 +362,9 @@ describe("WP-05 watchdog — recovery retry & escalation", () => {
         } as any)
         const sid = "ses_done"
 
-        await hooks.event(makeStatusEvent(sid, "busy"))
-        await hooks.event(makeErrorEvent(sid, "ProviderError", "stream failed"))
-        await hooks.event(makeStatusEvent(sid, "idle"))
+        await hooks.event!(makeStatusEvent(sid, "busy") as any)
+        await hooks.event!(makeErrorEvent(sid, "ProviderError", "stream failed") as any)
+        await hooks.event!(makeStatusEvent(sid, "idle") as any)
 
         const sent = await waitFor(() => promptCalls.length >= 1)
         expect(sent).toBe(true)
@@ -373,7 +373,7 @@ describe("WP-05 watchdog — recovery retry & escalation", () => {
         // The statusMap mock must agree, or the timer loop reconciles the
         // session back to "idle" (index.ts) before the watchdog runs.
         statusMap[sid] = "busy"
-        await hooks.event(makeStatusEvent(sid, "busy"))
+        await hooks.event!(makeStatusEvent(sid, "busy") as any)
 
         const logged = await waitFor(() =>
             logCalls.some(l => l.level === "info" && l.message.includes("Recovery successful on")),
@@ -407,9 +407,9 @@ describe("WP-05 watchdog — recovery retry & escalation", () => {
         } as any)
         const sid = "ses_abf"
 
-        await hooks.event(makeStatusEvent(sid, "busy"))
-        await hooks.event(makeErrorEvent(sid, "ProviderError", "stream failed"))
-        await hooks.event(makeStatusEvent(sid, "idle"))
+        await hooks.event!(makeStatusEvent(sid, "busy") as any)
+        await hooks.event!(makeErrorEvent(sid, "ProviderError", "stream failed") as any)
+        await hooks.event!(makeStatusEvent(sid, "idle") as any)
 
         await wait(800)
         expect(promptCalls.length).toBe(1)
@@ -446,9 +446,9 @@ describe("WP-05 watchdog — recovery retry & escalation", () => {
         } as any)
         const sid = "ses_caf"
 
-        await hooks.event(makeStatusEvent(sid, "busy"))
-        await hooks.event(makeErrorEvent(sid, "ProviderError", "stream failed"))
-        await hooks.event(makeStatusEvent(sid, "idle"))
+        await hooks.event!(makeStatusEvent(sid, "busy") as any)
+        await hooks.event!(makeErrorEvent(sid, "ProviderError", "stream failed") as any)
+        await hooks.event!(makeStatusEvent(sid, "idle") as any)
 
         // ABORT_CONTINUE_DELAY_MS = 2000: the continue-after-abort prompt
         // lands ~2s after the abort, so wait for it explicitly. Call 2 throws
@@ -464,15 +464,15 @@ describe("WP-05 watchdog — recovery retry & escalation", () => {
         expect(logCalls.some(l => l.message.includes("lastError=abort+resume failed"))).toBe(true)
     })
 
-    test("watchdog retry prompt failure resets recoveryAttempts and re-triggers", async () => {
-        const { ctx, logCalls, promptCalls, abortCalls } = createWatchdogContext({
+    test("watchdog retry prompt failure does NOT reset budget → loop stays bounded (no infinite re-trigger)", async () => {
+        const { ctx, logCalls, promptCalls } = createWatchdogContext({
             statusMap: { ses_rrf: "idle" },
             messages: {
                 ses_rrf: [
                     { role: "assistant", parts: [{ type: "text", text: "working" }] },
                 ],
             },
-            // Call 1: initial recovery send. Call 2: the watchdog retry — fails.
+            // Call 1: initial recovery send. Call 2: the watchdog retry — throws.
             failFromCall: 2,
         })
         const hooks = await AutoResumePlugin(ctx, {
@@ -483,22 +483,29 @@ describe("WP-05 watchdog — recovery retry & escalation", () => {
         } as any)
         const sid = "ses_rrf"
 
-        await hooks.event(makeStatusEvent(sid, "busy"))
-        await hooks.event(makeErrorEvent(sid, "ProviderError", "stream failed"))
-        await hooks.event(makeStatusEvent(sid, "idle"))
+        await hooks.event!(makeStatusEvent(sid, "busy") as any)
+        await hooks.event!(makeErrorEvent(sid, "ProviderError", "stream failed") as any)
+        await hooks.event!(makeStatusEvent(sid, "idle") as any)
 
-        // Call 1 (initial) + call 2 (retry, fails) + call 3 (retry's internal
-        // retry, fails) + call 4 (timer-loop re-trigger) + call 5 (its internal
-        // retry, fails again). The watchdog chain resets recoveryAttempts to 0
-        // each time, so the timer loop keeps re-initiating.
-        const reTriggered = await waitFor(() => promptCalls.length >= 5, 3000)
-        expect(reTriggered).toBe(true)
-        expect(promptCalls.length).toBeGreaterThanOrEqual(5)
-        expect(abortCalls.length).toBe(0)
-        expect(logCalls.some(l => l.level === "warn" && l.message.includes("recovery retry failed: simulated prompt failure"))).toBe(true)
+        // FIX under test: a failed recovery retry used to reset recoveryAttempts
+        // to 0, letting the main timer-loop re-arm "continue" forever (the
+        // infinite loop that could only be stopped by closing the session).
+        // Now the budget is consumed, so the loop terminates after the attempt.
+        const retryFailed = await waitFor(
+            () => logCalls.some(l => l.level === "warn" && l.message.includes("recovery retry failed: simulated prompt failure")),
+            3000,
+        )
+        expect(retryFailed).toBe(true)
         expect(logCalls.some(l => l.message.includes("Retrying recovery on"))).toBe(true)
-        expect(logCalls.some(l => l.level === "warn" && l.message.includes("pending recovery failed: simulated prompt failure"))).toBe(true)
-        expect(logCalls.filter(l => l.message.includes("Pending recovery triggered")).length).toBeGreaterThanOrEqual(2)
+
+        // Bounded: the OLD buggy reset pushed promptCalls to 5+ and kept
+        // climbing (the old test asserted >= 5). The fix keeps it flat — let it
+        // settle and assert it is stable AND below that threshold.
+        await wait(400)
+        const settled = promptCalls.length
+        await wait(400)
+        expect(promptCalls.length).toBe(settled)
+        expect(promptCalls.length).toBeLessThan(5)
     })
 
     test("abort+resume escalation succeeds: entry, abort OK, and continue done logs", async () => {        const { ctx, logCalls, promptCalls, abortCalls } = createWatchdogContext({
@@ -517,9 +524,9 @@ describe("WP-05 watchdog — recovery retry & escalation", () => {
         } as any)
         const sid = "ses_esc"
 
-        await hooks.event(makeStatusEvent(sid, "busy"))
-        await hooks.event(makeErrorEvent(sid, "ProviderError", "stream failed"))
-        await hooks.event(makeStatusEvent(sid, "idle"))
+        await hooks.event!(makeStatusEvent(sid, "busy") as any)
+        await hooks.event!(makeErrorEvent(sid, "ProviderError", "stream failed") as any)
+        await hooks.event!(makeStatusEvent(sid, "idle") as any)
 
         await wait(800)
         expect(promptCalls.length).toBe(1)
