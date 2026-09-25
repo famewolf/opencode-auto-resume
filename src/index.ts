@@ -505,8 +505,6 @@ export const AutoResumePlugin: Plugin = async (ctx, options) => {
         (options?.contextSaturationThreshold as number) ?? 0.85
     const subagentNativeCompactionEnabled: boolean =
         (options?.subagentNativeCompactionEnabled as boolean) ?? false
-    const activeUserWindowMs: number =
-        (options?.activeUserWindowMs as number) ?? DEFAULT_ACTIVE_USER_WINDOW_MS
     const dbg = (...args: unknown[]) => { if (debug) console.log("[debug]", ...args) }
 
     const sessions = new Map<string, SessionWatch>()
