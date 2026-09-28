@@ -10,12 +10,13 @@ This file is kept current automatically: the fork owner's daily upstream-sync jo
 
 | Branch | Head | Date | Change | Submitted as | Status (2026-09-28) |
 |---|---|---|---|---|---|
-| `pr20-v2port` | [`3c1d88c`](https://github.com/famewolf/opencode-auto-resume/commit/3c1d88c) | 2026-09-27 | OpenCode v2 port (10 commits — listed below; the v1 loop-fix #36 was merged upstream separately and is no longer carried here) | [Mte90/opencode-auto-resume#37](https://github.com/Mte90/opencode-auto-resume/pull/37) | OPEN — 0 maintainer replies (2 doc comments from us) |
+| `pr20-v2port` | [`875d7e4`](https://github.com/famewolf/opencode-auto-resume/commit/875d7e4) | 2026-09-28 | OpenCode v2 port (11 commits — listed below; the v1 loop-fix #36 was merged upstream separately and is no longer carried here). Head is a **strict superset of upstream PR #20** (`b5fd8aa` is a direct ancestor). | [Mte90/opencode-auto-resume#37](https://github.com/Mte90/opencode-auto-resume/pull/37) | OPEN — 0 maintainer replies (2 doc comments on #37, 1 reply on #20) |
 
 Commits on `pr20-v2port` (newest first):
 
 | Commit | Date | Change |
 |---|---|---|
+| `875d7e4` | 2026-09-28 | fix(v2): stop self-inflicted "Step interrupted" and synthetic-continue bursts — routes all three v2 recovery paths through a single `injectOnce()` choke point (rate limit + busy check), stops the plugin reacting to its own abort events, adds liveness handlers, and makes `src/v2/index.ts` buildable |
 | `3c1d88c` | 2026-09-27 | v2 back-port: `shouldStandDownForUser` guard (v1 parity) — stand down on a pending tool_use/question or recent user activity; + `activeUserWindowMs` option (default 15min) |
 | `0dd0403` | 2026-09-27 | fix(v2): never nudge a turn that hands off to the user |
 | `9a44699` | 2026-09-27 | v2: never interrupt compaction or live busy sessions |
