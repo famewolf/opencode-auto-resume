@@ -8,9 +8,9 @@ This file is kept current automatically: the fork owner's daily upstream-sync jo
 
 ## Our changes — not yet in upstream [US]
 
-| Branch | Head | Date | Change | Submitted as | Status (2026-09-28) |
+| Branch | Head | Date | Change | Submitted as | Status (2026-09-29) |
 |---|---|---|---|---|---|
-| `pr20-v2port` | [`875d7e4`](https://github.com/famewolf/opencode-auto-resume/commit/875d7e4) | 2026-09-28 | OpenCode v2 port (11 commits — listed below; the v1 loop-fix #36 was merged upstream separately and is no longer carried here). Head is a **strict superset of upstream PR #20** (`b5fd8aa` is a direct ancestor). | [Mte90/opencode-auto-resume#37](https://github.com/Mte90/opencode-auto-resume/pull/37) | OPEN — 0 maintainer replies (2 doc comments on #37, 1 reply on #20) |
+| `pr20-v2port` | [`875d7e4`](https://github.com/famewolf/opencode-auto-resume/commit/875d7e4) | 2026-09-28 | OpenCode v2 port (11 commits — listed below; the v1 loop-fix #36 was merged upstream separately and is no longer carried here). Head is a **strict superset of upstream PR #20** (`b5fd8aa` is a direct ancestor). | [Mte90/opencode-auto-resume#37](https://github.com/Mte90/opencode-auto-resume/pull/37) | OPEN — maintainer replied 2026-09-29 (valentimarco: "i will try the branch"; also noted a tool-interrupt bug he will report if it recurs); 2 doc comments + 1 reply on #37, 1 reply on #20 |
 
 Commits on `pr20-v2port` (newest first):
 
@@ -42,6 +42,7 @@ Commits on `pr20-v2port` (newest first):
 
 | Commit | Author | Date | Change |
 |---|---|---|---|
+| `e1b8374` | Daniele Scasciafratte | 2026-09-29 | Fix todoNudgeAttempts burning retries on failed sends |
 | `8ef7053` | Daniele Scasciafratte | 2026-09-28 | perf(tests): cut toolext runtime from 104s to 23s |
 | `48d4541` | Daniele Scasciafratte | 2026-09-28 | Merge pull request #36 from famewolf/fix/recovery-counter-reset — *our contribution* |
 | `9af63fb` | famewolf | 2026-09-26 | Stop the recovery-continue infinite loop — *our contribution* |
@@ -53,7 +54,6 @@ Commits on `pr20-v2port` (newest first):
 | `a546b75` | Daniele Scasciafratte | 2026-09-21 | Merge PR #31 from famewolf/block-nudge-input-gate — *our contribution* |
 | `a26a62b` | famewolf | 2026-09-17 | Gate block-site visible nudge on pending user input — *our contribution* |
 | `9a57af8` | Daniele Scasciafratte | 2026-09-18 | feat(tool): on unknown tool suggest the right one |
-| `3c8767f` | Daniele Scasciafratte | 2026-09-18 | Merge PR #30 from famewolf/fix/task-complete-repeat-guard — *our contribution* |
 
 *Rows marked "our contribution" were authored by famewolf and merged into upstream; all other rows are upstream authors' work — not fork changes.*
 
