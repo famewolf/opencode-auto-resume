@@ -8,14 +8,16 @@ This file is kept current automatically: the fork owner's daily upstream-sync jo
 
 ## Our changes — not yet in upstream [US]
 
-| Branch | Head | Date | Change | Submitted as | Status (2026-09-29) |
+| Branch | Head | Date | Change | Submitted as | Status (2026-09-30) |
 |---|---|---|---|---|---|
-| `pr20-v2port` | [`875d7e4`](https://github.com/famewolf/opencode-auto-resume/commit/875d7e4) | 2026-09-28 | OpenCode v2 port (11 commits — listed below; the v1 loop-fix #36 was merged upstream separately and is no longer carried here). Head is a **strict superset of upstream PR #20** (`b5fd8aa` is a direct ancestor). | [Mte90/opencode-auto-resume#37](https://github.com/Mte90/opencode-auto-resume/pull/37) | OPEN — maintainer replied 2026-09-29 (valentimarco: "i will try the branch"; also noted a tool-interrupt bug he will report if it recurs); 2 doc comments + 1 reply on #37, 1 reply on #20 |
+| `pr20-v2port` | [`4855d18`](https://github.com/famewolf/opencode-auto-resume/commit/4855d18) | 2026-09-29 | OpenCode v2 port (13 commits — listed below; the v1 loop-fix #36 was merged upstream separately and is no longer carried here). Head is a **strict superset of upstream PR #20** (`b5fd8aa` is a direct ancestor). | [Mte90/opencode-auto-resume#37](https://github.com/Mte90/opencode-auto-resume/pull/37) | OPEN — maintainer still testing (valentimarco 2026-09-29: "i will try the branch"); 2 new comments 2026-09-30 (revert-handoff guard; v1 plugin-detect parity); valentimarco closed his own PR #20 unmerged 2026-09-29 (credit stays with #37) |
 
 Commits on `pr20-v2port` (newest first):
 
 | Commit | Date | Change |
 |---|---|---|
+| `4855d18` | 2026-09-29 | fix(v2): handle the `session.revert.*` family so a rewind drops watch state |
+| `67c34ff` | 2026-09-29 | fix(v2): stand down when a question or permission is awaiting the user |
 | `875d7e4` | 2026-09-28 | fix(v2): stop self-inflicted "Step interrupted" and synthetic-continue bursts — routes all three v2 recovery paths through a single `injectOnce()` choke point (rate limit + busy check), stops the plugin reacting to its own abort events, adds liveness handlers, and makes `src/v2/index.ts` buildable |
 | `3c1d88c` | 2026-09-27 | v2 back-port: `shouldStandDownForUser` guard (v1 parity) — stand down on a pending tool_use/question or recent user activity; + `activeUserWindowMs` option (default 15min) |
 | `0dd0403` | 2026-09-27 | fix(v2): never nudge a turn that hands off to the user |
@@ -42,6 +44,7 @@ Commits on `pr20-v2port` (newest first):
 
 | Commit | Author | Date | Change |
 |---|---|---|---|
+| `49957b2` | Daniele Scasciafratte | 2026-09-30 | Raise default chunk timeout 45s→180s — implements our issue #38 (now closed upstream) |
 | `e1b8374` | Daniele Scasciafratte | 2026-09-29 | Fix todoNudgeAttempts burning retries on failed sends |
 | `8ef7053` | Daniele Scasciafratte | 2026-09-28 | perf(tests): cut toolext runtime from 104s to 23s |
 | `48d4541` | Daniele Scasciafratte | 2026-09-28 | Merge pull request #36 from famewolf/fix/recovery-counter-reset — *our contribution* |
@@ -53,11 +56,11 @@ Commits on `pr20-v2port` (newest first):
 | `f47b5b6` | Daniele Scasciafratte | 2026-09-21 | Fix open-todos reminder not firing when w.todos is empty |
 | `a546b75` | Daniele Scasciafratte | 2026-09-21 | Merge PR #31 from famewolf/block-nudge-input-gate — *our contribution* |
 | `a26a62b` | famewolf | 2026-09-17 | Gate block-site visible nudge on pending user input — *our contribution* |
-| `9a57af8` | Daniele Scasciafratte | 2026-09-18 | feat(tool): on unknown tool suggest the right one |
 
 *Rows marked "our contribution" were authored by famewolf and merged into upstream; all other rows are upstream authors' work — not fork changes.*
 
 ## Notes
 
 - Default branch `master` is functionally in sync with upstream `master` (its local commits were merged upstream as PRs #29/#30/#31/#34/#36; hash-level ahead/behind may show small deltas because of merge style).
+- 2026-09-30: upstream implemented our issue #38 directly (`49957b2` — 180s default chunk timeout; #38 closed, no PR needed). valentimarco closed his own PR #20 unmerged (credit stays with #37).
 - A canonical copy of this changelog is kept by the fork owner (`memory/fork-changelogs/famewolf__opencode-auto-resume.md`) so the record survives a destructive fork reset; the sync job restores it if a sync removes it from the fork.
