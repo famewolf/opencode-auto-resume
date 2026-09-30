@@ -1040,6 +1040,15 @@ export default define({
 				dbg(`${short(sid)} mid-compaction — skipping ${kind} nudge`)
 				return
 			}
+			// A session with a shell still running is working, not idle. A parent
+			// parked on a background job goes idle the moment the tool call returns
+			// — long before the process finishes — so without this it collects a
+			// nudge on the spot and the stall watchdog never even gets a look.
+			const busyShells = openShellCount(sid)
+			if (busyShells > 0) {
+				dbg(`${short(sid)} ${busyShells} shell(s) still running — skipping ${kind} nudge`)
+				return
+			}
 			if (selfAbortActive(w)) {
 				dbg(`${short(sid)} self-abort in flight — skipping ${kind} nudge`)
 				return
