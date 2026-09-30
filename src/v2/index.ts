@@ -190,6 +190,14 @@ const DEFAULT_LOOP_WINDOW_MS = 10 * 60_000
 const DEFAULT_DEBUG = false
 const DEFAULT_ACTIVE_USER_WINDOW_MS = 15 * 60_000
 
+/**
+ * Upper bound on how long a `shell.created` → `shell.exited` pair is trusted
+ * to mean "this session is busy". A shell that never reports an exit (session
+ * torn down, event dropped) would otherwise suppress recovery forever, so
+ * entries are pruned past this. Set well above any realistic long build.
+ */
+const SHELL_OPEN_MAX_MS = 30 * 60_000
+
 /** OOC (out-of-context) errors that `continue` can never clear — recovery is locked out on these. */
 const OOC_ERROR_RE = /exceeds the available context size|context size \(\d+\)|too large to compact|too many tokens|prompt is too long/i
 
@@ -525,6 +533,38 @@ export default define({
 
 		const sessions = new Map<string, SessionWatch>()
 
+		/**
+		 * Open shells from the process-registry event family, keyed by shell id
+		 * → `{ sessionID, startedAt }`. Populated by `shell.created`, cleared by
+		 * `shell.exited`. A session with an entry here is running a command and
+		 * must not be treated as a stalled parent.
+		 *
+		 * `shell.created` is the only shell event that carries its session, and it
+		 * nests it at `data.info.metadata.sessionID`; the exit events carry only
+		 * the shell id, so the reverse lookup has to be recorded here.
+		 */
+		const openShells = new Map<string, { sessionID: string; startedAt: number }>()
+
+		/** Number of shells currently open for `sid`, pruning stale entries. */
+		function openShellCount(sid: string, now = Date.now()): number {
+			let n = 0
+			for (const [id, s] of openShells) {
+				if (now - s.startedAt > SHELL_OPEN_MAX_MS) {
+					openShells.delete(id)
+					continue
+				}
+				if (s.sessionID === sid) n++
+			}
+			return n
+		}
+
+		/** Drop every shell entry owned by a session that no longer exists. */
+		function forgetShells(sid: string): void {
+			for (const [id, s] of openShells) {
+				if (s.sessionID === sid) openShells.delete(id)
+			}
+		}
+
 		function ensureWatch(sid: string): SessionWatch {
 			let w = sessions.get(sid)
 			if (!w) {
@@ -783,8 +823,17 @@ export default define({
 					if (!toDelete.includes(entries[i].sid)) toDelete.push(entries[i].sid)
 				}
 			}
-			for (const sid of toDelete) sessions.delete(sid)
-			if (toDelete.length > 0) dbg(`cleaned ${toDelete.length} idle sessions, total=${sessions.size}`)
+			let cleaned = 0
+			for (const sid of toDelete) {
+				// A session waiting on a long command emits no activity events and
+				// therefore looks idle. Don't drop its watch state out from under
+				// a shell that is still running.
+				if (openShellCount(sid) > 0) continue
+				forgetShells(sid)
+				sessions.delete(sid)
+				cleaned++
+			}
+			if (cleaned > 0) dbg(`cleaned ${cleaned} idle sessions, total=${sessions.size}`)
 		}
 
 		/**
@@ -1201,6 +1250,16 @@ async function inspectOnIdle(sid: string) {
 					dbg(`${short(sid)} silent but inside our own abort window — skipping`)
 					continue
 				}
+				// A session with a shell still running is working, not stalled. This
+				// covers the parked-parent case the task-tool heuristic below cannot
+				// see: a backgrounded `shell` spawns no child session, so
+				// `lastWasTaskTool` stays false and `others.length` never gets a
+				// chance to say "this parent is waiting on something".
+				const busyShells = openShellCount(sid)
+				if (busyShells > 0) {
+					dbg(`${short(sid)} silent with ${busyShells} shell(s) still running — waiting`)
+					continue
+				}
 				// If another session is actively running and this one went silent
 				// right after dispatching a task tool, treat it as a parent wait.
 				if (w.lastWasTaskTool) {
@@ -1285,6 +1344,7 @@ async function inspectOnIdle(sid: string) {
 				case "session.deleted": {
 					const sid = sidOf(ev)
 					if (!sid) return
+					forgetShells(sid)
 					sessions.delete(sid)
 					return
 				}
@@ -1304,6 +1364,7 @@ async function inspectOnIdle(sid: string) {
 				case "session.revert.committed": {
 					const sid = sidOf(ev)
 					if (!sid) return
+					forgetShells(sid)
 					sessions.delete(sid)
 					return
 				}
@@ -1313,6 +1374,7 @@ async function inspectOnIdle(sid: string) {
 				case "session.reverted": {
 					const sid = sidOf(ev)
 					if (!sid) return
+					forgetShells(sid)
 					sessions.delete(sid)
 					return
 				}
@@ -1420,6 +1482,38 @@ async function inspectOnIdle(sid: string) {
 				case "session.shell.ended": {
 					const sid = sidOf(ev)
 					if (!sid) return
+					touch(sid)
+					return
+				}
+				// --- shell process registry ---
+				// `session.shell.*` above is the session-scoped family. The runtime
+				// also emits a process-registry family, and which one fires depends
+				// on the tool path (the bash/Code Mode shell emits only these). We
+				// need the registry pair because it is the one that reports a
+				// backgrounded job's real completion: `session.tool.success` fires
+				// as soon as the *tool call* returns, which for `background: true`
+				// is a few hundred ms — long before the process finishes.
+				//
+				// `shell.deleted` is deliberately not used: it carries a different
+				// id family than `created`/`exited` (verified against the running
+				// server), so it cannot close an entry. `shell.exited` can.
+				case "shell.created": {
+					const info = ev.data?.info
+					if (!info || typeof info !== "object") return
+					const rec = info as { id?: unknown; metadata?: { sessionID?: unknown } }
+					const id = rec.id
+					const sid = rec.metadata?.sessionID
+					if (typeof id !== "string" || typeof sid !== "string") return
+					openShells.set(id, { sessionID: sid, startedAt: Date.now() })
+					touch(sid)
+					return
+				}
+				case "shell.exited": {
+					const id = ev.data?.id
+					if (typeof id !== "string") return
+					const sid = openShells.get(id)?.sessionID
+					if (sid === undefined) return
+					openShells.delete(id)
 					touch(sid)
 					return
 				}
