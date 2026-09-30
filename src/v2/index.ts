@@ -62,6 +62,14 @@ interface AutoResumePluginInput {
 	event: { subscribe: (opts?: { signal?: AbortSignal }) => AsyncIterable<V2Event> }
 	/** Server-side session/messaging operations. */
 	session: Record<string, (...args: any[]) => any>
+	/**
+	 * Opencode API client, when the host provides one. Declared on the real
+	 * `@opencode-ai/plugin` `PluginInput` (`client: ReturnType<typeof
+	 * createOpencodeClient>`); typed here structurally so the file still
+	 * type-checks standalone. Optional: a host may not supply it, and every
+	 * use must degrade gracefully when it is absent.
+	 */
+	client?: { session: { get: (opts: { path: { id: string } }) => Promise<{ data?: { parentID?: string } }> } }
 	/** Application logger, when the host provides one. */
 	app?: { log?: (level: string, message: string) => unknown }
 }
@@ -124,6 +132,10 @@ interface SessionWatch {
 	/** Timestamp of the latest `permission.asked` (stale-guard for the flag). */
 	permissionPendingAt: number | null
 	lastWasTaskTool: boolean
+	/** Cached verdict from `isSubAgentSession()`: true when the server reports a
+	 * `parentID` for this session, i.e. it is a child and must never be injected
+	 * into or interrupted. `undefined` = not yet resolved. */
+	isSubAgent?: boolean
 	idleSince: number | null
 	/** Set while the session is mid native compaction — recovery must never interrupt it. */
 	compacting: boolean
@@ -161,7 +173,13 @@ export interface AutoResumeOptions {
 // Constants & defaults
 // ---------------------------------------------------------------------------
 
-const DEFAULT_CHUNK_TIMEOUT_MS = 45_000
+// 45s -> 180s (2026-09-29): silence is the ONLY stall signal here, and 45s +
+// 3s grace misfires on a single shared GPU where one subagent turn legitimately
+// emits no events for over a minute. Widening the window is a mitigation, not
+// the principled fix — that is positive hang detection (a tool call stuck in
+// running/pending is a real hang; model generation is not), which changes
+// recovery semantics and is still an open decision.
+const DEFAULT_CHUNK_TIMEOUT_MS = 180_000
 const DEFAULT_CHECK_INTERVAL_MS = 5_000
 const DEFAULT_GRACE_PERIOD_MS = 3_000
 const DEFAULT_MAX_RETRIES = 3
@@ -458,7 +476,6 @@ function isTaskToolCall(ev: V2Event): boolean {
 	const desc = ev.data?.input?.description ?? ev.data?.input?.subagent_type ?? ev.data?.input?.agent
 	return typeof desc === "string"
 }
-
 // ---------------------------------------------------------------------------
 // Plugin
 // ---------------------------------------------------------------------------
@@ -661,6 +678,40 @@ export default define({
 		}
 
 		/**
+		 * Is this session itself a subagent? Definitive test: ask the server for
+		 * our own record and look at `parentID`.
+		 *
+		 * This plugin is parent-scoped — it exists to recover sessions a human is
+		 * waiting on. A child is not that: it never reads the parent's AGENTS.md,
+		 * so a prompt-level "ignore injected continues" rule in the child agent
+		 * loses to an injection that arrives as a real task turn. Observed in the
+		 * wild: a worker answered an invisible prompt mid-task and never returned.
+		 *
+		 * Deliberately independent of the `lastWasTaskTool` heuristic used for
+		 * parents in `checkActiveSessions` — that one asks "did this session just
+		 * dispatch a child?", this one asks "is this session a child?". A silent
+		 * child gets no protection from the parent-side heuristic, which is
+		 * exactly the gap this closes.
+		 *
+		 * Cached on the watch record. `ctx.client` is optional and any failure
+		 * degrades to `false` — i.e. precisely the pre-guard behavior — so a host
+		 * without a client can neither break recovery nor fail to boot.
+		 */
+		async function isSubAgentSession(sid: string): Promise<boolean> {
+			const w = ensureWatch(sid)
+			if (typeof w.isSubAgent === "boolean") return w.isSubAgent
+			let sub = false
+			try {
+				const res = await ctx.client?.session.get({ path: { id: sid } })
+				sub = !!res?.data?.parentID
+			} catch {
+				sub = false
+			}
+			w.isSubAgent = sub
+			return sub
+		}
+
+		/**
 		 * Single choke point for every recovery injection. Guarantees at most one
 		 * synthetic per `injectIntervalMs` and refuses to talk to a live session,
 		 * because a turn sent to a busy session supersedes its in-flight step
@@ -684,6 +735,12 @@ export default define({
 			allowDuringSelfAbort = false,
 		): Promise<boolean> {
 			const w = ensureWatch(sid)
+			// A subagent is not ours to recover. Checked first, before every other
+			// guard, so no code path below can reach a child.
+			if (await isSubAgentSession(sid)) {
+				dbg(`${short(sid)} subagent session — injection refused (parent owns recovery)`)
+				return false
+			}
 			if (!allowDuringSelfAbort && selfAbortActive(w)) {
 				dbg(`${short(sid)} injection refused — inside our own abort window`)
 				return false
@@ -790,6 +847,13 @@ export default define({
 		}
 
 		async function tryAbortAndResume(sid: string, w: SessionWatch): Promise<boolean> {
+			// Guarded separately because this path calls `interrupt()` *before*
+			// delegating to injectOnce — guarding only the injection would still
+			// let us interrupt a running child.
+			if (await isSubAgentSession(sid)) {
+				dbg(`${short(sid)} subagent session — abort+resume refused`)
+				return false
+			}
 			if (w.aborting || selfAbortActive(w)) return false
 			if (w.oocLocked) {
 				dbg(`${short(sid)} oocLocked — refusing abort+resume escalation`)
