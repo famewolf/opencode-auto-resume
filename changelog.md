@@ -8,9 +8,9 @@ This file is kept current automatically: the fork owner's daily upstream-sync jo
 
 ## Our changes — not yet in upstream [US]
 
-| Branch | Head | Date | Change | Submitted as | Status (2026-09-30) |
+| Branch | Head | Date | Change | Submitted as | Status (2026-10-01) |
 |---|---|---|---|---|---|
-| `pr20-v2port` | [`4855d18`](https://github.com/famewolf/opencode-auto-resume/commit/4855d18) | 2026-09-29 | OpenCode v2 port (13 commits — listed below; the v1 loop-fix #36 was merged upstream separately and is no longer carried here). Head is a **strict superset of upstream PR #20** (`b5fd8aa` is a direct ancestor). | [Mte90/opencode-auto-resume#37](https://github.com/Mte90/opencode-auto-resume/pull/37) | OPEN — maintainer still testing (valentimarco 2026-09-29: "i will try the branch"); 2 new comments 2026-09-30 (revert-handoff guard; v1 plugin-detect parity); valentimarco closed his own PR #20 unmerged 2026-09-29 (credit stays with #37) |
+| `pr20-v2port` | [`4855d18`](https://github.com/famewolf/opencode-auto-resume/commit/4855d18) | 2026-09-29 | OpenCode v2 port (13 commits — listed below; the v1 loop-fix #36 was merged upstream separately and is no longer carried here). Head is a **strict superset of upstream PR #20** (`b5fd8aa` is a direct ancestor). | [Mte90/opencode-auto-resume#37](https://github.com/Mte90/opencode-auto-resume/pull/37) | OPEN, mergeable — **Mte90 replied 2026-10-01 (issue #33): wants ONE PR with everything (full v2 port + v1 compat; support all options, remove only the v2-incompatible ones, "we don't want to break the UX") — scope decision pending with fork owner**. Earlier: valentimarco 2026-09-29 "i will try the branch"; 2 comments 2026-09-30 (revert-handoff guard; v1 plugin-detect parity); valentimarco closed his own PR #20 unmerged 2026-09-29 (credit stays with #37) |
 
 Commits on `pr20-v2port` (newest first):
 
@@ -44,6 +44,7 @@ Commits on `pr20-v2port` (newest first):
 
 | Commit | Author | Date | Change |
 |---|---|---|---|
+| `0c9bc06` | Daniele Scasciafratte | 2026-10-01 | fix(bump): ready — package.json version-bump prep (no functional change; latest release still 1.1.20) |
 | `49957b2` | Daniele Scasciafratte | 2026-09-30 | Raise default chunk timeout 45s→180s — implements our issue #38 (now closed upstream) |
 | `e1b8374` | Daniele Scasciafratte | 2026-09-29 | Fix todoNudgeAttempts burning retries on failed sends |
 | `8ef7053` | Daniele Scasciafratte | 2026-09-28 | perf(tests): cut toolext runtime from 104s to 23s |
@@ -55,7 +56,6 @@ Commits on `pr20-v2port` (newest first):
 | `442f0df` | Daniele Scasciafratte | 2026-09-21 | fix(abort): #32 |
 | `f47b5b6` | Daniele Scasciafratte | 2026-09-21 | Fix open-todos reminder not firing when w.todos is empty |
 | `a546b75` | Daniele Scasciafratte | 2026-09-21 | Merge PR #31 from famewolf/block-nudge-input-gate — *our contribution* |
-| `a26a62b` | famewolf | 2026-09-17 | Gate block-site visible nudge on pending user input — *our contribution* |
 
 *Rows marked "our contribution" were authored by famewolf and merged into upstream; all other rows are upstream authors' work — not fork changes.*
 
@@ -63,4 +63,5 @@ Commits on `pr20-v2port` (newest first):
 
 - Default branch `master` is functionally in sync with upstream `master` (its local commits were merged upstream as PRs #29/#30/#31/#34/#36; hash-level ahead/behind may show small deltas because of merge style).
 - 2026-09-30: upstream implemented our issue #38 directly (`49957b2` — 180s default chunk timeout; #38 closed, no PR needed). valentimarco closed his own PR #20 unmerged (credit stays with #37).
+- 2026-10-01: upstream master 49957b2→0c9bc06 (package.json bump prep, no functional change; latest release still 1.1.20). Mte90 answered issue #33 (2026-10-01): single-PR scope — full v2+v1 compat, all options supported. PR #37 still open, mergeable, 0 new PR comments.
 - A canonical copy of this changelog is kept by the fork owner (`memory/fork-changelogs/famewolf__opencode-auto-resume.md`) so the record survives a destructive fork reset; the sync job restores it if a sync removes it from the fork.
