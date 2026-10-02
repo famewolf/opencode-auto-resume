@@ -8,27 +8,35 @@ This file is kept current automatically: the fork owner's daily upstream-sync jo
 
 ## Our changes — not yet in upstream [US]
 
-| Branch | Head | Date | Change | Submitted as | Status (2026-10-01) |
+| Branch | Head | Date | Change | Submitted as | Status (2026-10-02) |
 |---|---|---|---|---|---|
-| `pr20-v2port` | [`4855d18`](https://github.com/famewolf/opencode-auto-resume/commit/4855d18) | 2026-09-29 | OpenCode v2 port (13 commits — listed below; the v1 loop-fix #36 was merged upstream separately and is no longer carried here). Head is a **strict superset of upstream PR #20** (`b5fd8aa` is a direct ancestor). | [Mte90/opencode-auto-resume#37](https://github.com/Mte90/opencode-auto-resume/pull/37) | OPEN, mergeable — **Mte90 replied 2026-10-01 (issue #33): wants ONE PR with everything (full v2 port + v1 compat; support all options, remove only the v2-incompatible ones, "we don't want to break the UX") — scope decision pending with fork owner**. Earlier: valentimarco 2026-09-29 "i will try the branch"; 2 comments 2026-09-30 (revert-handoff guard; v1 plugin-detect parity); valentimarco closed his own PR #20 unmerged 2026-09-29 (credit stays with #37) |
+| `pr20-v2port` | [`805aca4`](https://github.com/famewolf/opencode-auto-resume/commit/805aca4) | 2026-10-01 | OpenCode v2 port (15 own commits — listed below; the v1 loop-fix #36 was merged upstream separately and is no longer carried here). Rebased onto upstream `0c9bc06` 2026-10-01 (`d890f6c`); the port lives in a self-contained v2 module. | [Mte90/opencode-auto-resume#37](https://github.com/Mte90/opencode-auto-resume/pull/37) | OPEN, mergeable=clean at 805aca4 — **Mte90 replied 2026-10-02 08:47 (issue #33): "I think that we can proceed" — scope decision resolved in our favor (v2 port as-is; v1 untouched on master)**. PR body rewritten 2026-10-02. Awaiting maintainer review/merge. Earlier: 2026-10-01 single-PR scope ask; valentimarco closed his own PR #20 unmerged 2026-09-29 (credit stays with #37) |
+| `local/v1-revert-watch` | [`939d232`](https://github.com/famewolf/opencode-auto-resume/commit/939d232) | 2026-10-01 | v1: drop a session's watch state when a revert arrives — v1 has no revert-named event; a rewind arrives as `session.updated` with `properties.info.revert` (verified live on v1.18.34: 79 events, zero revert-named). Single commit on upstream `0c9bc06`. | [Mte90/opencode-auto-resume#39](https://github.com/Mte90/opencode-auto-resume/issues/39) (issue, full patch inlined) | **Mte90 replied 2026-10-02 08:47: "I need a PR :-)" — PR draft ready (title+body, UNSSENT, awaiting approval)** |
 
 Commits on `pr20-v2port` (newest first):
 
 | Commit | Date | Change |
 |---|---|---|
-| `4855d18` | 2026-09-29 | fix(v2): handle the `session.revert.*` family so a rewind drops watch state |
-| `67c34ff` | 2026-09-29 | fix(v2): stand down when a question or permission is awaiting the user |
-| `875d7e4` | 2026-09-28 | fix(v2): stop self-inflicted "Step interrupted" and synthetic-continue bursts — routes all three v2 recovery paths through a single `injectOnce()` choke point (rate limit + busy check), stops the plugin reacting to its own abort events, adds liveness handlers, and makes `src/v2/index.ts` buildable |
-| `3c1d88c` | 2026-09-27 | v2 back-port: `shouldStandDownForUser` guard (v1 parity) — stand down on a pending tool_use/question or recent user activity; + `activeUserWindowMs` option (default 15min) |
-| `0dd0403` | 2026-09-27 | fix(v2): never nudge a turn that hands off to the user |
-| `9a44699` | 2026-09-27 | v2: never interrupt compaction or live busy sessions |
-| `0a0a961` | 2026-09-26 | OOC lock (parity with v1 loop-fix) |
-| `5491286` | 2026-09-24 | Merge `upstream/master` into `pr20-v2port` |
-| `b5fd8aa` | 2026-09-17 | docs(v2): document `@opencode/plugin` resolution requirement (upstream: valentimarco) |
-| `aa89252` | 2026-09-17 | docs(v2): add install guide and stable migration notes (upstream: valentimarco) |
-| `ad92b39` | 2026-09-17 | feat(v2): target stable `@opencode/plugin` 2.0.5 API (upstream: valentimarco) |
-| `5e04ade` | 2026-08-26 | feat(plugin): show visible notification when recovering from stall/failure (upstream: valentimarco) |
-| `7511aea` | 2026-08-25 | feat(plugin): add opencode v2 port with event-driven architecture (upstream: valentimarco) |
+| `805aca4` | 2026-10-01 | Drop the session.reverted case: v1 never emitted it |
+| `263a8e8` | 2026-10-01 | docs(v2): the install guide was describing a plugin this is not |
+| `d890f6c` | 2026-10-01 | Merge `upstream/master` into the v2 port (base `0c9bc06`) |
+| `537b2d3` | 2026-10-01 | feat(v2): judge a finished turn once its text has settled, not the instant it ends |
+| `3c15386` | 2026-10-01 | feat(v2): recover a parent left waiting on a subagent that will not answer |
+| `516c40f` | 2026-10-01 | feat(v2): name a replacement when a model calls a tool that does not exist |
+| `7d7c8c3` | 2026-10-01 | feat(v2): offer the model an explicit way to say it is finished |
+| `16fdc92` | 2026-10-01 | feat(v2): read the todo list, and stop trusting the emoji on its own |
+| `887ae94` | 2026-10-01 | feat(v2): ask for the tool call when the model writes one in its reasoning |
+| `d301bd2` | 2026-10-01 | feat(v2): catch the stream that finished without saying anything |
+| `f93dfa1` | 2026-10-01 | feat(v2): read the token window and route saturated sessions like v1 does |
+| `e61dfec` | 2026-10-01 | feat(v2): catch the premature stop, and make activeUserWindowMs real |
+| `c871c29` | 2026-10-01 | feat(v2): sweep sessions on startup, and give the plugin a log file at all |
+| `7135c46` | 2026-10-01 | feat(v2): read every v1 option, warn on unknown keys, and complete busyStallStrategy |
+| `0c9bc06` | 2026-10-01 | UPSTREAM — fix(bump): ready (rebase base; package.json bump prep, no functional change) |
+| `49957b2` | 2026-09-30 | UPSTREAM — Raise default chunk timeout to 180s (implements our issue #38, now closed upstream) |
+| `e1b8374` | 2026-09-29 | UPSTREAM — Fix todoNudgeAttempts burning retries on failed sends |
+| `8ef7053` | 2026-09-28 | UPSTREAM — perf(tests): cut toolext runtime from 104s to 23s |
+| `48d4541` | 2026-09-28 | UPSTREAM — Merge PR #36 from famewolf/fix/recovery-counter-reset — *our contribution* |
+| `9af63fb` | 2026-09-26 | UPSTREAM — Stop the recovery-continue infinite loop — *our contribution* |
 
 ## Our changes — merged into upstream [US]
 
@@ -64,4 +72,5 @@ Commits on `pr20-v2port` (newest first):
 - Default branch `master` is functionally in sync with upstream `master` (its local commits were merged upstream as PRs #29/#30/#31/#34/#36; hash-level ahead/behind may show small deltas because of merge style).
 - 2026-09-30: upstream implemented our issue #38 directly (`49957b2` — 180s default chunk timeout; #38 closed, no PR needed). valentimarco closed his own PR #20 unmerged (credit stays with #37).
 - 2026-10-01: upstream master 49957b2→0c9bc06 (package.json bump prep, no functional change; latest release still 1.1.20). Mte90 answered issue #33 (2026-10-01): single-PR scope — full v2+v1 compat, all options supported. PR #37 still open, mergeable, 0 new PR comments.
+- 2026-10-02: `pr20-v2port` head 4855d18→805aca4 (rebased onto upstream `0c9bc06`, force-pushed; PR body rewritten, mergeable=clean). Mte90 2026-10-02 08:47 on #33: "I think that we can proceed" — scope resolved in our favor. New branch `local/v1-revert-watch` @939d232 → issue #39; Mte90: "I need a PR :-)" (draft awaiting approval). Upstream master unchanged at `0c9bc06` (no v1 porting work in the 10-01→10-02 window).
 - A canonical copy of this changelog is kept by the fork owner (`memory/fork-changelogs/famewolf__opencode-auto-resume.md`) so the record survives a destructive fork reset; the sync job restores it if a sync removes it from the fork.
