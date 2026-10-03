@@ -344,6 +344,12 @@ export interface AutoResumeOptions {
 	 * variable sets the same thing and wins over neither.
 	 */
 	logFile?: string
+	/**
+	 * Inert delivery probe. Never affects behaviour; echoed in the `ready`
+	 * line so a config-options change can be verified without touching a
+	 * live knob. Bump the value to test delivery.
+	 */
+	configProbe?: string | number
 }
 
 // ---------------------------------------------------------------------------
@@ -1199,6 +1205,9 @@ export default define({
 				: /^(1|true|yes)$/i.test(envVisible))
 		const richContinuePrompt = opts.richContinuePrompt ?? true
 		const logFile = opts.logFile ?? process.env.AUTO_RESUME_LOG_FILE ?? DEFAULT_LOG_FILE
+		// Inert probe: proves `plugins[].options` reaches `ctx.options` without
+		// touching a live knob. Echoed in the `ready` line only.
+		const configProbe = opts.configProbe ?? null
 		// How long a parent may sit busy after its last subagent went idle before
 		// the orphan watch acts. v1 default, honoured for the first time here.
 		const subagentWaitMs = opts.subagentWaitMs ?? DEFAULT_SUBAGENT_WAIT_MS
@@ -1314,6 +1323,7 @@ export default define({
 			"thinkingToolRecoveryPrompt",
 			"doneWithoutWorkPrompt",
 			"logFile",
+			"configProbe",
 		])
 		const unknownOptions = Object.keys(opts).filter((key) => !RECOGNISED_OPTIONS.has(key))
 		if (unknownOptions.length > 0) {
@@ -3994,7 +4004,7 @@ export default define({
 
 		log(
 			"info",
-			`ready (opencode v2). timeout=${chunkTimeoutMs}ms interval=${checkIntervalMs}ms retries=${maxRetries} loop=${loopMaxContinues}/${loopWindowMs / 1000}s warmup=${warmupMs}ms stall=${busyStallStrategy} visibleContinue=${visibleContinue} mod=${MODULE_INSTANCE}` +
+			`ready (opencode v2). timeout=${chunkTimeoutMs}ms interval=${checkIntervalMs}ms retries=${maxRetries} loop=${loopMaxContinues}/${loopWindowMs / 1000}s warmup=${warmupMs}ms stall=${busyStallStrategy} visibleContinue=${visibleContinue} probe=${configProbe ?? "-"} mod=${MODULE_INSTANCE}` +
 				(gatedInUse.length > 0 ? ` accepted-but-inert=${gatedInUse.join(",")}` : ""),
 		)
 
