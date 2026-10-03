@@ -409,7 +409,7 @@ const CTX_WRAPUP_TRIGGER = "ctx-wrapup"
 // the principled fix — that is positive hang detection (a tool call stuck in
 // running/pending is a real hang; model generation is not), which changes
 // recovery semantics and is still an open decision.
-const DEFAULT_CHUNK_TIMEOUT_MS = 20_000 // TEMP-TEST per user 2026-10-03: stay at 20s until stall issues resolved; production 180_000
+const DEFAULT_CHUNK_TIMEOUT_MS = 180_000
 const DEFAULT_CHECK_INTERVAL_MS = 5_000
 const DEFAULT_GRACE_PERIOD_MS = 3_000
 const DEFAULT_MAX_RETRIES = 3
