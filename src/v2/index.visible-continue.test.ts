@@ -85,6 +85,7 @@ async function replay(
 	todos: unknown[] | undefined = undefined,
 	extraEvents: Array<{ at: number; event: any }> = [],
 	waitMs = 600,
+	recentMessages: unknown[] | undefined = undefined,
 ): Promise<Harness> {
 	const injected: Harness["injected"] = []
 	const stream = makeEventStream()
@@ -100,7 +101,14 @@ async function replay(
 			synthetic: async (a: any) => (injected.push({ kind: "synthetic", text: a?.text }), {}),
 			prompt: async (a: any) => (injected.push({ kind: "prompt", text: a?.text }), {}),
 		},
-		client: { session: { get: async () => ({ data: {} }) } },
+		client: {
+			session: {
+				get: async () => ({ data: {} }),
+				message: {
+					list: async () => ({ data: recentMessages ?? [], cursor: null }),
+				},
+			},
+		},
 		storage: {
 			get: async () => ({ todos: todos ?? [], updatedAt: Date.now() }),
 			set: async () => {},
@@ -193,6 +201,54 @@ describe("v2: rich stall-continue text", () => {
 		const { injected } = await replay(busyStallEvents, { maxRetries: 1, continuePrompt: "go" }, OPEN)
 		expect(injected.length).toBeGreaterThan(0)
 		expect(injected[0].text).toBe("go")
+	})
+})
+
+describe("v2: cross-instance duplicate check (shared log)", () => {
+	const userMsg = (text: string, at: number) => ({
+		role: "user",
+		content: [{ type: "text", text }],
+		time: { created: at },
+	})
+
+	test("a sibling's identical prod in the log suppresses ours", async () => {
+		// Two stacked watchdogs, one session: the first instance's prod is a
+		// user message in the log, so the second instance must stand down even
+		// though its private counters know nothing.
+		const { injected, logs } = await replay(
+			busyStallEvents,
+			{ maxRetries: 5, continuePrompt: "go" },
+			[],
+			[],
+			900,
+			[userMsg("go", Date.now())],
+		)
+		expect(injected).toEqual([])
+		expect(logs.some((l) => l.includes("identical prod already in session log"))).toBe(true)
+	})
+
+	test("a newer user message is progress, not a duplicate", async () => {
+		const { injected } = await replay(
+			busyStallEvents,
+			{ maxRetries: 1, continuePrompt: "go" },
+			[],
+			[],
+			600,
+			[userMsg("actually, also this", Date.now())],
+		)
+		expect(injected.length).toBeGreaterThan(0)
+	})
+
+	test("a stale identical prod does not suppress", async () => {
+		const { injected } = await replay(
+			busyStallEvents,
+			{ maxRetries: 1, continuePrompt: "go" },
+			[],
+			[],
+			600,
+			[userMsg("go", Date.now() - 10 * 60_000)],
+		)
+		expect(injected.length).toBeGreaterThan(0)
 	})
 })
 
