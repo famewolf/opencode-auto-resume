@@ -221,3 +221,21 @@ All tests use `bun:test` (existing pattern in `src/index.*.test.ts`).
 | New: `silentContinue` | **PARTIAL** (no-op stub) | Trivial (~10 lines) | Low (parity) |
 
 Total estimated effort: ~150 lines of v1 changes + ~150 lines of tests.
+
+---
+
+## Todo-plugin features (added after this research): NO v1 target
+
+Three features landed in the todo fork after the above analysis
+(`todo-upstream-fork`, branch `todo-message-log-read`):
+validation limits (max 100 todos / 500 chars, atomic fail),
+`auto-todos.json` injection, and the already-wired `/todo-sections`
+settings menu. None has a v1 backport target: there is no v1 todo
+*plugin* on this box. The fork README states it directly — this is a
+"V2 plugin that restores the session todo list tools that shipped with
+OpenCode V1", i.e. V1 had these as builtins, not as a plugin.
+`opencode-todolist-local` and the retired `todo-fork` are both v2-shaped
+(`export default plugin`). If a v1-shaped todo plugin ever appears,
+re-evaluate: limits and auto-injection are pure logic (`todos.ts`,
+`auto-todos.ts`) with no v2 API dependency and would port trivially;
+`/todo-sections` depends on the v2 TUI dialog/keymap API and would not.
