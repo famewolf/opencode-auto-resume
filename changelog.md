@@ -8,15 +8,18 @@ This file is kept current automatically: the fork owner's daily upstream-sync jo
 
 ## Our changes — not yet in upstream [US]
 
-| Branch | Head | Date | Change | Submitted as | Status (2026-10-02) |
+| Branch | Head | Date | Change | Submitted as | Status (2026-10-03) |
 |---|---|---|---|---|---|
-| `pr20-v2port` | [`805aca4`](https://github.com/famewolf/opencode-auto-resume/commit/805aca4) | 2026-10-01 | OpenCode v2 port (15 own commits — listed below; the v1 loop-fix #36 was merged upstream separately and is no longer carried here). Rebased onto upstream `0c9bc06` 2026-10-01 (`d890f6c`); the port lives in a self-contained v2 module. | [Mte90/opencode-auto-resume#37](https://github.com/Mte90/opencode-auto-resume/pull/37) | OPEN, mergeable=clean at 805aca4 — **Mte90 replied 2026-10-02 08:47 (issue #33): "I think that we can proceed" — scope decision resolved in our favor (v2 port as-is; v1 untouched on master)**. PR body rewritten 2026-10-02. Awaiting maintainer review/merge. Earlier: 2026-10-01 single-PR scope ask; valentimarco closed his own PR #20 unmerged 2026-09-29 (credit stays with #37) |
+| `pr20-v2port` | [`a355db3`](https://github.com/famewolf/opencode-auto-resume/commit/a355db3) | 2026-10-03 | OpenCode v2 port (18 own commits — listed below; the v1 loop-fix #36 was merged upstream separately and is no longer carried here). Rebased onto upstream `0c9bc06` 2026-10-01 (`d890f6c`); the port lives in a self-contained v2 module. | [Mte90/opencode-auto-resume#37](https://github.com/Mte90/opencode-auto-resume/pull/37) | OPEN, mergeable=clean at a355db3 — **Mte90 replied 2026-10-02 08:47 (issue #33): "I think that we can proceed" — scope decision resolved in our favor (v2 port as-is; v1 untouched on master)**. PR body rewritten 2026-10-02. Awaiting maintainer review/merge. Earlier: 2026-10-01 single-PR scope ask; valentimarco closed his own PR #20 unmerged 2026-09-29 (credit stays with #37) |
 | `local/v1-revert-watch` | [`939d232`](https://github.com/famewolf/opencode-auto-resume/commit/939d232) | 2026-10-01 | v1: drop a session's watch state when a revert arrives — v1 has no revert-named event; a rewind arrives as `session.updated` with `properties.info.revert` (verified live on v1.18.34: 79 events, zero revert-named). Single commit on upstream `0c9bc06`. | [Mte90/opencode-auto-resume#39](https://github.com/Mte90/opencode-auto-resume/issues/39) (issue, full patch inlined) | **Mte90 replied 2026-10-02 08:47: "I need a PR :-)" — PR draft ready (title+body, UNSSENT, awaiting approval)** |
 
 Commits on `pr20-v2port` (newest first):
 
 | Commit | Date | Change |
 |---|---|---|
+| `a355db3` | 2026-10-03 | docs: say why the todo parser is a copy and not an import |
+| `801e22e` | 2026-10-03 | docs: correct why the storage fallback cannot be promoted |
+| `a83e158` | 2026-10-03 | fix(v2): read todos from the session message log, not the dead storage key |
 | `805aca4` | 2026-10-01 | Drop the session.reverted case: v1 never emitted it |
 | `263a8e8` | 2026-10-01 | docs(v2): the install guide was describing a plugin this is not |
 | `d890f6c` | 2026-10-01 | Merge `upstream/master` into the v2 port (base `0c9bc06`) |
@@ -73,4 +76,5 @@ Commits on `pr20-v2port` (newest first):
 - 2026-09-30: upstream implemented our issue #38 directly (`49957b2` — 180s default chunk timeout; #38 closed, no PR needed). valentimarco closed his own PR #20 unmerged (credit stays with #37).
 - 2026-10-01: upstream master 49957b2→0c9bc06 (package.json bump prep, no functional change; latest release still 1.1.20). Mte90 answered issue #33 (2026-10-01): single-PR scope — full v2+v1 compat, all options supported. PR #37 still open, mergeable, 0 new PR comments.
 - 2026-10-02: `pr20-v2port` head 4855d18→805aca4 (rebased onto upstream `0c9bc06`, force-pushed; PR body rewritten, mergeable=clean). Mte90 2026-10-02 08:47 on #33: "I think that we can proceed" — scope resolved in our favor. New branch `local/v1-revert-watch` @939d232 → issue #39; Mte90: "I need a PR :-)" (draft awaiting approval). Upstream master unchanged at `0c9bc06` (no v1 porting work in the 10-01→10-02 window).
+- 2026-10-03: `pr20-v2port` head 805aca4→a355db3 (3 new commits pushed: `a83e158` fix(v2) read todos from session message log; `801e22e` docs; `a355db3` docs). PR #37 still OPEN, not merged. Upstream master unchanged at `0c9bc06`.
 - A canonical copy of this changelog is kept by the fork owner (`memory/fork-changelogs/famewolf__opencode-auto-resume.md`) so the record survives a destructive fork reset; the sync job restores it if a sync removes it from the fork.
