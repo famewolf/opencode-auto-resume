@@ -279,8 +279,11 @@ export interface AutoResumeOptions {
 	 * When true, a stall continue is sent via `ctx.session.prompt()` — a real
 	 * user message visible in session history (cattleprod-style) — instead of
 	 * the hidden `ctx.session.synthetic({resume:true})`. Default false: same
-	 * channel as before. Checks that decide nothing stay silent either way;
-	 * only the action-driving continue becomes visible.
+	 * channel as before. Env fallback `AUTO_RESUME_VISIBLE_CONTINUE=1` (the
+	 * `opencode.jsonc` `plugin` array has no options slot on this box, so env
+	 * via the top-level `env` block is the live knob). Checks that decide
+	 * nothing stay silent either way; only the action-driving continue
+	 * becomes visible.
 	 */
 	visibleContinue?: boolean
 	/**
@@ -1109,7 +1112,9 @@ export default define({
 		const debug = opts.debug ?? DEFAULT_DEBUG
 		const activeUserWindowMs = opts.activeUserWindowMs ?? DEFAULT_ACTIVE_USER_WINDOW_MS
 		const injectIntervalMs = opts.injectIntervalMs ?? DEFAULT_INJECT_INTERVAL_MS
-		const visibleContinue = opts.visibleContinue ?? false
+		const visibleContinue =
+			opts.visibleContinue ??
+			/^(1|true|yes)$/i.test(process.env.AUTO_RESUME_VISIBLE_CONTINUE ?? "")
 		const richContinuePrompt = opts.richContinuePrompt ?? true
 		const logFile = opts.logFile ?? process.env.AUTO_RESUME_LOG_FILE ?? DEFAULT_LOG_FILE
 		// How long a parent may sit busy after its last subagent went idle before
@@ -3779,7 +3784,7 @@ export default define({
 
 		log(
 			"info",
-			`ready (opencode v2). timeout=${chunkTimeoutMs}ms interval=${checkIntervalMs}ms retries=${maxRetries} loop=${loopMaxContinues}/${loopWindowMs / 1000}s warmup=${warmupMs}ms stall=${busyStallStrategy}` +
+			`ready (opencode v2). timeout=${chunkTimeoutMs}ms interval=${checkIntervalMs}ms retries=${maxRetries} loop=${loopMaxContinues}/${loopWindowMs / 1000}s warmup=${warmupMs}ms stall=${busyStallStrategy} visibleContinue=${visibleContinue}` +
 				(gatedInUse.length > 0 ? ` accepted-but-inert=${gatedInUse.join(",")}` : ""),
 		)
 
