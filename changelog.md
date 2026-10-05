@@ -58,6 +58,7 @@ Commits on `pr20-v2port` (newest first):
 
 | Commit | Author | Date | Change |
 |---|---|---|---|
+| `abfb2e2` | Daniele Scasciafratte | 2026-10-05 | Merge pull request #40 from famewolf/local/v1-revert-watch — *our contribution* |
 | `0c9bc06` | Daniele Scasciafratte | 2026-10-01 | fix(bump): ready — package.json version-bump prep (no functional change; latest release still 1.1.20) |
 | `49957b2` | Daniele Scasciafratte | 2026-09-30 | Raise default chunk timeout 45s→180s — implements our issue #38 (now closed upstream) |
 | `e1b8374` | Daniele Scasciafratte | 2026-09-29 | Fix todoNudgeAttempts burning retries on failed sends |
@@ -81,4 +82,5 @@ Commits on `pr20-v2port` (newest first):
 - 2026-10-02: `pr20-v2port` head 4855d18→805aca4 (rebased onto upstream `0c9bc06`, force-pushed; PR body rewritten, mergeable=clean). Mte90 2026-10-02 08:47 on #33: "I think that we can proceed" — scope resolved in our favor. New branch `local/v1-revert-watch` @939d232 → issue #39; Mte90: "I need a PR :-)" (PR #40 opened 2026-10-02 after approval). Upstream master unchanged at `0c9bc06` (no v1 porting work in the 10-01→10-02 window).
 - 2026-10-03: `pr20-v2port` head 805aca4→a355db3 (3 new commits pushed: `a83e158` fix(v2) read todos from session message log; `801e22e` docs; `a355db3` docs). PR #37 still OPEN, not merged. Upstream master unchanged at `0c9bc06`.
 - 2026-10-04: `pr20-v2port` head a355db3→f773ea6 (3 commits pushed 2026-10-03 after the 9am run: `5f3fb0a` docs, `ef25e39` flake-test, `f773ea6` docs; gitea in sync at f773ea6). PR #37 OPEN, mergeable=clean, 0 new Mte90 reviews; PR #40 OPEN, 0 comments. Upstream master unchanged at `0c9bc06` (no v1 porting work). Latest release still 1.1.20.
+- 2026-10-05: **PR #40 (v1 revert-watch fix, head 939d232) MERGED into master by Mte90 10-05T07:43** (merge abfb2e2, 0 review comments); issue #39 closed. **Mte90 closed third-party PR #41 (scienceguy v2 entry) in favor of our PR #37** — "we are focusing on #37" (positive momentum). `pr20-v2port` head unchanged at f773ea6 (0 new Mte90 reviews).
 - A canonical copy of this changelog is kept by the fork owner (`memory/fork-changelogs/famewolf__opencode-auto-resume.md`) so the record survives a destructive fork reset; the sync job restores it if a sync removes it from the fork.
