@@ -8,10 +8,9 @@ This file is kept current automatically: the fork owner's daily upstream-sync jo
 
 ## Our changes — not yet in upstream [US]
 
-| Branch | Head | Date | Change | Submitted as | Status (2026-10-04) |
+| Branch | Head | Date | Change | Submitted as | Status (2026-10-05) |
 |---|---|---|---|---|---|
-| `pr20-v2port` | [`f773ea6`](https://github.com/famewolf/opencode-auto-resume/commit/f773ea6) | 2026-10-03 | OpenCode v2 port (21 own commits — listed below; the v1 loop-fix #36 was merged upstream separately and is no longer carried here). Rebased onto upstream `0c9bc06` 2026-10-01 (`d890f6c`); the port lives in a self-contained v2 module. | [Mte90/opencode-auto-resume#37](https://github.com/Mte90/opencode-auto-resume/pull/37) | OPEN, mergeable=clean at f773ea6 — **Mte90 replied 2026-10-02 08:47 (issue #33): "I think that we can proceed" — scope decision resolved in our favor (v2 port as-is; v1 untouched on master)**. PR body rewritten 2026-10-02, STALE vs f773ea6 (refresh draft at `/tmp/opencode/drafts/pr37_body_numbers_refresh.md` — review-before-send). Awaiting maintainer review/merge — 0 new Mte90 reviews as of 2026-10-04. Earlier: 2026-10-01 single-PR scope ask; valentimarco closed his own PR #20 unmerged 2026-09-29 (credit stays with #37) |
-| `local/v1-revert-watch` | [`939d232`](https://github.com/famewolf/opencode-auto-resume/commit/939d232) | 2026-10-01 | v1: drop a session's watch state when a revert arrives — v1 has no revert-named event; a rewind arrives as `session.updated` with `properties.info.revert` (verified live on v1.18.34: 79 events, zero revert-named). Single commit on upstream `0c9bc06`. | [Mte90/opencode-auto-resume#39](https://github.com/Mte90/opencode-auto-resume/issues/39) (issue, full patch inlined) → [Mte90/opencode-auto-resume#40](https://github.com/Mte90/opencode-auto-resume/pull/40) (PR) | **Mte90 replied 2026-10-02 08:47: "I need a PR :-)" → PR #40 OPENED 2026-10-02 (head 939d232, base master; 0 comments as of 2026-10-04). Awaiting review/merge.** |
+| `pr20-v2port` | [`f773ea6`](https://github.com/famewolf/opencode-auto-resume/commit/f773ea6) | 2026-10-03 | OpenCode v2 port (21 own commits — listed below; the v1 loop-fix #36 was merged upstream separately and is no longer carried here). Rebased onto upstream `0c9bc06` 2026-10-01 (`d890f6c`); the port lives in a self-contained v2 module. | [Mte90/opencode-auto-resume#37](https://github.com/Mte90/opencode-auto-resume/pull/37) | OPEN, mergeable=clean at f773ea6 — **Mte90 replied 2026-10-02 08:47 (issue #33): "I think that we can proceed" — scope decision resolved in our favor (v2 port as-is; v1 untouched on master)**. PR body rewritten 2026-10-02, STALE vs f773ea6 (refresh draft at `/tmp/opencode/drafts/pr37_body_numbers_refresh.md` — review-before-send). Awaiting maintainer review/merge — 0 new Mte90 reviews as of 2026-10-05. Earlier: 2026-10-01 single-PR scope ask; valentimarco closed his own PR #20 unmerged 2026-09-29 (credit stays with #37) |
 
 Commits on `pr20-v2port` (newest first):
 
@@ -53,6 +52,7 @@ Commits on `pr20-v2port` (newest first):
 | [Mte90/opencode-auto-resume#31](https://github.com/Mte90/opencode-auto-resume/pull/31) | `a546b75` (head `a26a62b`) | 2026-09-21 | block-nudge input gate — in release 1.1.18 |
 | [Mte90/opencode-auto-resume#34](https://github.com/Mte90/opencode-auto-resume/pull/34) | `6f4a5af` (head `e0d6a27`) | 2026-09-23 | stop the infinite "continue" loop when the model server is down — in release 1.1.19 |
 | [Mte90/opencode-auto-resume#36](https://github.com/Mte90/opencode-auto-resume/pull/36) | `48d4541` (head `9af63fb`) | 2026-09-28 | stop the recovery-continue infinite loop (counter reset + `gaveUp` choke-point guard) — in release 1.1.20 |
+| [Mte90/opencode-auto-resume#40](https://github.com/Mte90/opencode-auto-resume/pull/40) | `abfb2e2` (head `939d232`) | 2026-10-05 | drop watch state on a revert (v1) — merged by Mte90 10-05T07:43 (0 review comments); issue #39 closed |
 
 ## Upstream activity — recent `master` history [UPSTREAM]
 
