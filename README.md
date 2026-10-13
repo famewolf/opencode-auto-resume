@@ -252,23 +252,23 @@ The todo gate is skipped for subagents: a child was never asked to do the parent
 **Recommended operator instructions.** A) is for global use. B) is for
 scheduled-job prompts where stalls cost real time:
 
-A) When all requested work is finished: if todo tools are available,
-mark every todo complete first — unfinished items will block the completion
-signal and you'll be asked to continue them instead. Then call the
-`task_complete` tool if one exists; otherwise end your reply with TASK
-COMPLETE on its own last line (a trailing 🎉 is also accepted). Call it
-once — repeated completion calls mean something is still open, so go do
+A) If a `task_complete` tool is offered in this session, call it once when all
+work is finished and no todos are open; otherwise end your reply with TASK
+COMPLETE on its own last line (a trailing 🎉 is also accepted). Never call it
+with items open. Mark every todo complete first where todo tools exist (stock
+opencode v2 offers none — there the bare line alone latches completion). Call
+it once — repeats mean something is still open, so go do
 that instead. Do not end with a question unless you actually need the user.
 Put A) in your AGENTS.md if you have one, or create one — at your project
 root for that project, or at `~/.config/opencode/AGENTS.md` for global
 effect across every session.
 
-B) When the work is done, in order: (1) if todo tools are available,
-mark all todos complete; (2) call `task_complete` if the tool exists, else
-end your reply with TASK COMPLETE on its own last line (a trailing 🎉 is
-also accepted); (3) do not end with a question unless you actually need the
-user — an unanswered question reads as still-working. Never call
-`task_complete` with items still open; it will be sent back with the list.
+B) If a `task_complete` tool is offered in this session, call it once when the
+work is done and no todos are open (mark them complete first where todo tools
+exist); otherwise end your reply with TASK COMPLETE on its own last line (a
+trailing 🎉 is also accepted). Never call it with items open. Do not end with
+a question unless you actually need the user — an unanswered question reads as
+still-working.
 Put B) in the scheduled-job prompt itself, next to the deliverables list.
 
 Every capability above is conditional on existing — the text fallback is
@@ -422,6 +422,12 @@ the no-new-work / no-destructive-actions guardrails, e.g.
 `continue — stalled (no activity for 186s). attempt 1/3 (retry #1); idle 3m 6s; Oct 12, 7:37 PM EDT. Only continue…`.
 Set `richContinuePrompt: false` for the bare `"continue"` (v1 behavior), or
 set `continuePrompt` to any custom text, which always wins verbatim.
+
+**Not the plugin's:** harness-level stall retries (e.g. a scheduler's
+"continue — stalled (session.execution.failed; attempt 1/3...)") reuse this
+shape — reason, attempt counts, timestamp, guardrails — but they are emitted by
+the session host, not by this plugin. Same format, different author; the
+`continuePrompt` / `richContinuePrompt` settings do not govern them.
 
 ### 3. Abort-first recovery
 
